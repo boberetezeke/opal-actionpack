@@ -1,5 +1,9 @@
-require 'opal-rspec'
-require 'opal-actionpack'
+if RUBY_ENGINE == "opal"
+  require 'opal-rspec'
+  require 'opal-actionpack'
+else
+  require_relative '../opal/action_pack/core'
+end
 
 module TestUnitHelpers
   def assert_equal actual, expected

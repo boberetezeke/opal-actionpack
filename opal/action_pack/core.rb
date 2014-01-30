@@ -9,6 +9,10 @@ class String
     end
     self
   end
+
+  def pluralize
+    self + "s"
+  end
 end
 
 class ActionController
@@ -18,6 +22,70 @@ class ActionController
     def initialize(params)
       @params = params
     end
+
+    def render_template
+      ActionView.new.render(file: render_path)
+    end
+
+    def invoke_action(action)
+      # set up default render path
+      @render_path = self.class.to_s.split(/::/).join("/")
+      controller.send(action)
+    end
+
+    protected
+
+    def render(view)
+      @render_path = (self.class.to_s.split(/::/)[0..-2] + view.to_s).join("/")
+    end
+
+    private
+
+    def render_path
+      @render_path
+    end
+  end
+end
+
+class ActionView
+  def initialize(locals={})
+    @locals = locals
+  end
+
+  def render(options={}, locals={}, &block)
+    if options[:file]
+      render_path = options[:file]
+    elsif options[:partial]
+      render_path = "_" + options[:partial]
+    elsif options[:text]
+      return options[:text]
+    end
+    @locals = locals
+    Template[render_path].render(self)
+  end
+
+  def link_to(text, path)
+    "<a href=\"#{path}\">#{text}</a>"
+  end
+
+  def resolve_path(path, *args)
+    Application.instance.resolve_path(path, *args)
+  end
+
+  def method_missing(sym, *args, &block)
+    sym_to_s = sym.to_s
+    if @locals.has_key?(sym_to_s)
+      return @locals[sym_to_s]
+    elsif @locals.has_key?(sym)
+      return @locals[sym]
+    end
+
+    m = /^(.*)_path$/.match(sym_to_s)
+    if m
+      return resolve_path(m[1], *args)
+    end
+
+    super
   end
 end
 
@@ -47,6 +115,15 @@ class Application
       raise "no route matches #{url}"
     end
 
+    def match_path(resource_name, action_name, *args)
+      @routes.each do |route|
+        action = route.match_path(resource_name, action_name, *args)
+        return action if action
+      end
+
+      raise "no route matches path #{resource_name}::#{action_name}"
+    end
+
     def to_parts(url)
       # remove leading '/'
       if m = /^\/(.*)$/.match(url)
@@ -72,13 +149,15 @@ class Application
 
   class Action
     attr_reader :name
-    def initialize(route, name, parts)
+    def initialize(route, action_type, name, parts)
       @route = route
+      @action_type = action_type
       @name = name
       @parts = parts
     end
 
     def match(parts, params)
+      #puts "Action:match: parts: #{parts}, name: #{@name}, action_parts: #{@parts}"
       return false if parts.size != @parts.size
 
       @parts.each_with_index do |part, index|
@@ -96,6 +175,41 @@ class Application
       return false
     end
 
+    def match_path(action_name, *args)
+      #puts "action_name = #{action_name}, name = #{@name}"
+      return false unless @name.to_s == action_name.to_s
+
+      if @action_type == :member
+        if args.size == 1
+          object = args.first
+          if object.class == String
+            object_id = object
+          else
+            object_id = object.id
+          end
+          #puts "object_id = #{object_id}, name = #{@name}"
+          if @name.to_s == 'show'
+            return object_id.to_s
+          else
+            return "#{object_id}/#{@name}"
+          end
+        else
+          raise "requires one argument passed to member path"
+        end
+      else
+        if args.size == 0
+          #puts "Action#match_path: @name = #{@name}"
+          if @name.to_s == 'index'
+            return ""
+          else
+            return @name
+          end
+        else
+          raise "argument passed to collection path"
+        end
+      end
+    end
+
     def invoke_controller(action, params, options)
       controller_class_name = "#{@route.name.singularize.capitalize}Controller"
       #controller_class_name = "#{@route.name.capitalize}Controller"
@@ -103,8 +217,8 @@ class Application
 
       if options[:render_view]
         controller = controller_class.new(params)
-        controller.send(action)
-        html = Template[controller.render_path].render(controller)
+        controller.invoke_action(action)
+        html = controller.render_template
         Document.find(options[:selector]).html = html
       end
 
@@ -124,17 +238,35 @@ class Application
     def initialize(name, options)
       @name = name.to_s
       @actions = [
-        Action.new(self, :show,  [{id: '.*'}]),
-        Action.new(self, :new,   ['new']),
-        Action.new(self, :edit,  [{id: '.*'}, 'edit']),
-        Action.new(self, :index, [])
+        Action.new(self, :member,     :show,  [{id: '.*'}]),
+        Action.new(self, :collection, :new,   ['new']),
+        Action.new(self, :member,     :edit,  [{id: '.*'}, 'edit']),
+        Action.new(self, :collection, :index, [])
       ]
     end
 
     def match(parts, params)
+      #puts "Route:match: parts: #{parts}, name: #{@name}"
       return nil unless @name == parts[0]
       @actions.each do |action|
         return action if action.match(parts[1..-1], params)
+      end
+      return nil
+    end
+
+    def match_path(resource_name, action_name, *args)
+      #puts "Route#match_path, name = #{@name}, resource_name = #{resource_name}"
+      return nil unless @name.to_s == resource_name.to_s
+      @actions.each do |action|
+        action_path = action.match_path(action_name, *args)
+        #puts "action_path = #{action_path}"
+        if action_path
+          if action_path == ""
+            return "/#{resource_name}"
+          else
+            return "/#{resource_name}/#{action_path}"
+          end
+        end
       end
       return nil
     end
@@ -144,7 +276,14 @@ class Application
     @routes ||= Router.new
   end
 
-  def initialize(initial_url, initial_objects)
+  def self.instance
+    @application || new
+  end
+
+  def initialize
+  end
+
+  def launch(initial_url, initial_objects)
     begin
       @memory_store = ActiveRecord::MemoryStore.new
       @objects = [initial_objects]
@@ -157,6 +296,31 @@ class Application
         puts trace
       end
     end
+  end
+
+  def resolve_path(path, *args)
+    m = /^((\w+)_)?(\w+)$/.match(path)
+    if m
+      resource = m[3]
+      #puts "matched pattern: #{m}, resource = #{resource}"
+      if m[1]
+        action = m[2]
+        #puts "multi part path, action = #{action}"
+      else
+        resource = m[3]
+        if args.size == 0
+          #puts "single part path, plural"
+          action = 'index'
+        else
+          #puts "single part path, singular"
+          action = 'show'
+        end
+      end
+    else
+      raise "unable to match path: #{path}_path"
+    end
+
+    self.class.routes.match_path(resource, action, *args)
   end
 
   def go_to_route(url, options={})
