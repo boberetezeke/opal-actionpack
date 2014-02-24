@@ -318,6 +318,9 @@ class Application
       if m[1]
         action = m[2]
         #puts "multi part path, action = #{action}"
+        if args.size == 1
+          resource = resource.pluralize
+        end
       else
         resource = m[3]
         if args.size == 0
@@ -325,6 +328,7 @@ class Application
           action = 'index'
         else
           #puts "single part path, singular"
+          resource = resource.pluralize
           action = 'show'
         end
       end

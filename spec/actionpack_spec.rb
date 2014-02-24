@@ -189,19 +189,19 @@ describe ActionView do
   describe "#resolve_path" do
     it "should match a show path" do
       action_view = ActionView.new
-      expect(action_view.resolve_path('calculators', "1")).to eq("/calculators/1")
+      expect(action_view.resolve_path('calculator', "1")).to eq("/calculators/1")
     end
   end
 
   describe "#method_missing" do
     it "should handle show _path method" do
       action_view = ActionView.new
-      expect(action_view.calculators_path("1")).to eq("/calculators/1")
+      expect(action_view.calculator_path("1")).to eq("/calculators/1")
     end
 
     it "should handle a non-show member _path method" do
       action_view = ActionView.new
-      expect(action_view.edit_calculators_path("1")).to eq("/calculators/1/edit")
+      expect(action_view.edit_calculator_path("1")).to eq("/calculators/1/edit")
     end
 
     it "should handle a index _path method" do
