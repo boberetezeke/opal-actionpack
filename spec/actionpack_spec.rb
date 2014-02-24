@@ -21,6 +21,12 @@ class CalculatorController
   end
 end
 
+
+if RUBY_ENGINE != "opal"
+  class Template
+  end
+end
+
 describe Application do
   let(:object1) { double('object') }
 
@@ -143,6 +149,38 @@ describe ActionView do
   end
 
   describe "#render" do
+    let(:template) { double('template') }
+
+    before do
+    end
+
+    it "renders from files" do
+      action_view = ActionView.new
+      expect(template).to receive(:render).with(action_view)
+      expect(Template).to receive(:[]).with("a/b/c").and_return(template)
+      action_view.render(file: "a/b/c") 
+    end
+
+    context "when doing a partial" do
+      it "renders from single-directory path partials" do
+        action_view = ActionView.new(path: "a/b")
+        expect(template).to receive(:render).with(action_view)
+        expect(Template).to receive(:[]).with("a/b/_c").and_return(template)
+        action_view.render(partial: "c") 
+      end
+
+      it "renders from multi-directory path partials" do
+        action_view = ActionView.new
+        expect(template).to receive(:render).with(action_view)
+        expect(Template).to receive(:[]).with("a/b/_c").and_return(template)
+        action_view.render(partial: "a/b/c") 
+      end
+    end
+
+    it "renders from text" do
+      action_view = ActionView.new
+      expect(action_view.render(text: "hello")).to eq("hello") 
+    end
   end
 
   describe "#link_to" do
@@ -177,7 +215,7 @@ describe ActionView do
     end
 
     it "should handle references to locals" do
-      action_view = ActionView.new(test_var: 1)
+      action_view = ActionView.new(locals: { test_var: 1})
       expect(action_view.test_var).to eq(1)
     end
   end

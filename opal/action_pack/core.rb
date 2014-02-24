@@ -48,15 +48,28 @@ class ActionController
 end
 
 class ActionView
-  def initialize(locals={})
-    @locals = locals
+  attr_reader :absolute_path
+  INITIALIZE_DEFAULTS={locals: {}, path: ""}
+  def initialize(options={})
+    options = INITIALIZE_DEFAULTS.merge(options) 
+    @path = options[:path]
+    # Opal / RMI diff ("".split(/\//) == [""] vs []
+    if @path == ""
+      @path_parts = []
+    else
+      @path_parts = @path.split(/\//)
+    end
+    @locals = options[:locals]
+    @absolute_path = ""
   end
 
   def render(options={}, locals={}, &block)
     if options[:file]
       render_path = options[:file]
+      @absolute_path = render_path
     elsif options[:partial]
-      render_path = "_" + options[:partial]
+      partial_parts = options[:partial].split(/\//)
+      render_path = (@path_parts + partial_parts[0..-2] + ["_" + partial_parts[-1]]).join("/")
     elsif options[:text]
       return options[:text]
     end
@@ -226,7 +239,6 @@ class Application
       controller_action = controller_action_class.new(params)
       controller_action.add_bindings
     end
-
   end
 
   class Route
