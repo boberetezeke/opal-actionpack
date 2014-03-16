@@ -12,11 +12,16 @@ class ActiveRecord
 end
 
 class CalculatorsController
-  class Show
+  class Show < ActionController::Base
     def initialize(params)
+      super
     end
 
     def add_bindings
+    end
+
+    def invoke_callback
+      calculators_path(id:1)
     end
   end
 end
@@ -221,3 +226,19 @@ describe ActionView do
   end
 end
  
+describe ActionController::Base do
+  before do
+    Application.routes.draw do |router|
+      router.resources :calculators
+      router.resources :results
+    end
+  end
+
+  describe "#action_method" do
+    it "should resolve_paths in the application" do
+      expect(Application.instance).to receive(:resolve_path)
+      calculators_controller = CalculatorsController::Show.new({})
+      calculators_controller.invoke_callback
+    end
+  end
+end

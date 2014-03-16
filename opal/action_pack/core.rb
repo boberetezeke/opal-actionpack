@@ -15,11 +15,30 @@ class String
   end
 end
 
+module PathHandler
+  def resolve_path(root, *args)
+    @application.resolve_path(root, *args)
+  end
+
+  def method_missing(sym, *args, &block)
+    sym_to_s = sym.to_s
+    m = /^(.*)_path$/.match(sym_to_s)
+    if m
+      return @application.resolve_path(m[1], *args)
+    end
+
+    super
+  end
+end
+
 class ActionController
   class Base
+    include PathHandler
+
     attr_reader :params
 
     def initialize(params)
+      @application = Application.instance
       @params = params
     end
 
@@ -48,11 +67,14 @@ class ActionController
 end
 
 class ActionView
+  include PathHandler
   attr_reader :absolute_path
+
   INITIALIZE_DEFAULTS={locals: {}, path: ""}
   def initialize(options={})
     options = INITIALIZE_DEFAULTS.merge(options) 
     @path = options[:path]
+    @application = Application.instance
     # Opal / RMI diff ("".split(/\//) == [""] vs []
     if @path == ""
       @path_parts = []
@@ -81,21 +103,12 @@ class ActionView
     "<a href=\"#{path}\">#{text}</a>"
   end
 
-  def resolve_path(path, *args)
-    Application.instance.resolve_path(path, *args)
-  end
-
   def method_missing(sym, *args, &block)
     sym_to_s = sym.to_s
     if @locals.has_key?(sym_to_s)
       return @locals[sym_to_s]
     elsif @locals.has_key?(sym)
       return @locals[sym]
-    end
-
-    m = /^(.*)_path$/.match(sym_to_s)
-    if m
-      return resolve_path(m[1], *args)
     end
 
     super
