@@ -224,8 +224,7 @@ class Application
     end
 
     def invoke_controller(action, params, options)
-      controller_class_name = "#{@route.name.singularize.capitalize}Controller"
-      #controller_class_name = "#{@route.name.capitalize}Controller"
+      controller_class_name = "#{@route.name.capitalize}Controller"
       controller_class = Object.const_get(controller_class_name)
 
       if options[:render_view]
@@ -289,7 +288,8 @@ class Application
   end
 
   def self.instance
-    @application || new
+    return @application if @application
+    @application = new
   end
 
   def initialize

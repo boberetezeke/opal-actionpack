@@ -11,7 +11,7 @@ class ActiveRecord
   end
 end
 
-class CalculatorController
+class CalculatorsController
   class Show
     def initialize(params)
     end
@@ -42,7 +42,7 @@ describe Application do
     context "when launching the application with a show action" do
       it "should be true" do
         show_controller = double('calculator_show_controller')
-        expect(CalculatorController::Show).to receive(:new).with({id: '1'}).and_return(show_controller)
+        expect(CalculatorsController::Show).to receive(:new).with({id: '1'}).and_return(show_controller)
         expect(show_controller).to receive(:add_bindings)
         application = Application.instance.launch("/calculators/1", object1)
       end
