@@ -202,7 +202,7 @@ class Application
     end
 
     def match_path(action_name, *args)
-      #puts "action_name = #{action_name}, name = #{@name}"
+      #puts "action_name = #{action_name}, name = #{@name}, args = #{args.inspect}"
       return false unless @name.to_s == action_name.to_s
 
       if @action_type == :member
@@ -223,7 +223,7 @@ class Application
           raise "requires one argument passed to member path"
         end
       else
-        if args.size == 0
+        if args.size == 0 || (args.size == 1 && args.first.is_a?(Hash))
           #puts "Action#match_path: @name = #{@name}"
           if @name.to_s == 'index'
             return ""
@@ -324,19 +324,23 @@ class Application
   end
 
   def resolve_path(path, *args)
-    m = /^((\w+)_)?(\w+)$/.match(path)
+    # FIXME: can't detect plural by checking for trailing 's'
+    m = /^((\w+)_)?((\w+?)(s)?)$/.match(path)
     if m
+      action_with_underscore = m[1]
+      action = m[2]
       resource = m[3]
-      #puts "matched pattern: #{m}, resource = #{resource}"
-      if m[1]
-        action = m[2]
+      resource_root = m[4]
+      is_plural = m[5]
+
+      #puts "matched pattern: #{m}, action = #{action.inspect}, resource = #{resource}, is_plural=#{is_plural.inspect}"
+      if action_with_underscore
         #puts "multi part path, action = #{action}"
-        if args.size == 1
+        if !is_plural
           resource = resource.pluralize
         end
       else
-        resource = m[3]
-        if args.size == 0
+        if is_plural
           #puts "single part path, plural"
           action = 'index'
         else

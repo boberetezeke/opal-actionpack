@@ -214,6 +214,11 @@ describe ActionView do
       expect(action_view.calculators_path).to eq("/calculators")
     end
 
+    it "should handle a index _path method with params" do
+      action_view = ActionView.new
+      expect(action_view.calculators_path(extra: 1)).to eq("/calculators")
+    end
+
     it "should handle a non-index collection _path method" do
       action_view = ActionView.new
       expect(action_view.new_calculators_path).to eq("/calculators/new")
