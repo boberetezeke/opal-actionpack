@@ -43,19 +43,23 @@ class ActionController
     end
 
     def render_template
-      ActionView.new.render(file: render_path)
+      ActionView.new.render(self, file: render_path)
     end
 
     def invoke_action(action)
       # set up default render path
-      @render_path = self.class.to_s.split(/::/).join("/")
-      controller.send(action)
+      @render_path = "views" + "/" + view_path + "/" + action.name
+      self.send(action.name)
     end
 
-    protected
+    def view_path
+      controller_parts = self.class.to_s.split(/::/)
+      controller_parts = controller_parts[0..-2].map{|part| part.downcase} + [controller_root_name(controller_parts[-1])]
+      controller_parts.join("/")
+    end
 
-    def render(view)
-      @render_path = (self.class.to_s.split(/::/)[0..-2] + view.to_s).join("/")
+    def controller_root_name(controller_name)
+      /^(.*)Controller$/.match(controller_name)[1].downcase
     end
 
     private
@@ -85,7 +89,7 @@ class ActionView
     @absolute_path = ""
   end
 
-  def render(options={}, locals={}, &block)
+  def render(controller, options={}, locals={}, &block)
     if options[:file]
       render_path = options[:file]
       @absolute_path = render_path
@@ -96,11 +100,18 @@ class ActionView
       return options[:text]
     end
     @locals = locals
+    copy_instance_variables_from(controller)
     Template[render_path].render(self)
   end
 
-  def link_to(text, path)
-    "<a href=\"#{path}\">#{text}</a>"
+  def copy_instance_variables_from(object)
+    object.instance_variables.each do |ivar|
+      self.instance_variable_set(ivar, object.instance_variable_get(ivar))
+    end
+  end
+
+  def link_to(text, path, options={})
+    "<a href=\"#{path}\"" + options.map{|k,v| "#{k}=\"#{v}\""}.join(' ') + ">#{text}</a>"
   end
 
   def method_missing(sym, *args, &block)
@@ -133,6 +144,7 @@ class Application
       parts, params = to_parts(url)
 
       @routes.each do |route|
+        #puts "matching parts=#{parts.inspect}, route=#{route.inspect}"
         if action = route.match(parts, params)
           return [action, params] 
         end
@@ -183,8 +195,9 @@ class Application
     end
 
     def match(parts, params)
-      #puts "Action:match: parts: #{parts}, name: #{@name}, action_parts: #{@parts}"
+      #puts "Action:match: parts: #{parts.inspect}, name: #{@name}, action_parts: #{@parts.inspect}"
       return false if parts.size != @parts.size
+      return true if parts.size == 0
 
       @parts.each_with_index do |part, index|
         if part.class == String
@@ -203,7 +216,14 @@ class Application
 
     def match_path(action_name, *args)
       #puts "action_name = #{action_name}, name = #{@name}, args = #{args.inspect}"
-      return false unless @name.to_s == action_name.to_s
+      params = {}
+      return [false, params] unless @name.to_s == action_name.to_s
+
+      if args.size > 0 
+        if args.last.is_a?(Hash)
+          params = args.pop
+        end
+      end
 
       if @action_type == :member
         if args.size == 1
@@ -214,22 +234,26 @@ class Application
             object_id = object.id
           end
           #puts "object_id = #{object_id}, name = #{@name}"
+          #
           if @name.to_s == 'show'
-            return object_id.to_s
+            action_root = object_id.to_s
           else
-            return "#{object_id}/#{@name}"
+            action_root = "#{object_id}/#{@name}"
           end
+          return [action_root, params]
         else
           raise "requires one argument passed to member path"
         end
       else
-        if args.size == 0 || (args.size == 1 && args.first.is_a?(Hash))
+        if args.size == 0
           #puts "Action#match_path: @name = #{@name}"
           if @name.to_s == 'index'
-            return ""
+            # FIXME: need to url encode parameters
+            action_root = ""
           else
-            return @name
+            action_root = @name
           end
+          return [action_root, params]
         else
           raise "argument passed to collection path"
         end
@@ -237,19 +261,28 @@ class Application
     end
 
     def invoke_controller(action, params, options)
-      controller_class_name = "#{@route.name.capitalize}Controller"
-      controller_class = Object.const_get(controller_class_name)
-
       if options[:render_view]
+        controller_class_name = "#{@route.name.capitalize}Controller"
+        controller_class = Object.const_get(controller_class_name)
         controller = controller_class.new(params)
         controller.invoke_action(action)
         html = controller.render_template
         Document.find(options[:selector]).html = html
       end
 
-      controller_action_class = controller_class.const_get(action.name.capitalize)
-      controller_action = controller_action_class.new(params)
-      controller_action.add_bindings
+      controller_client_class_name = "#{@route.name.capitalize}ClientController"
+      begin
+        controller_client_class = Object.const_get(controller_client_class_name)
+        begin
+          controller_action_class = controller_client_class.const_get(action.name.capitalize)
+          controller_action = controller_action_class.new(params)
+          controller_action.add_bindings
+        rescue
+          puts "client class: #{controller_client_class_name}::#{action.name.capitalize} doesn't exist"
+        end
+      rescue 
+        puts "client class: #{controller_client_class_name} doesn't exist"
+      end
     end
   end
 
@@ -282,14 +315,19 @@ class Application
       #puts "Route#match_path, name = #{@name}, resource_name = #{resource_name}"
       return nil unless @name.to_s == resource_name.to_s
       @actions.each do |action|
-        action_path = action.match_path(action_name, *args)
+        action_path, params = action.match_path(action_name, *args)
+        # FIXME: need to url encode parameters
+        params_string = params.map{|key, value| "#{key}=#{value}"}.join("&")
+
         #puts "action_path = #{action_path}"
         if action_path
           if action_path == ""
-            return "/#{resource_name}"
+            url =  "/#{resource_name}"
           else
-            return "/#{resource_name}/#{action_path}"
+            url = "/#{resource_name}/#{action_path}"
           end
+
+          return params_string.empty? ? url : "#{url}?#{params_string}"
         end
       end
       return nil
@@ -301,19 +339,20 @@ class Application
   end
 
   def self.instance
-    return @application if @application
-    @application = new
+    return @@application if defined?(@@application)
+    @@application = new
   end
 
   def initialize
+    @memory_store = ActiveRecord::MemoryStore.new
+    ActiveRecord::Base.connection = @memory_store
   end
 
   def launch(initial_url, initial_objects)
     begin
-      @memory_store = ActiveRecord::MemoryStore.new
       @objects = [initial_objects]
-      ActiveRecord::Base.connection = @memory_store
       @objects.each { |object| object.save }
+      puts "memory_store = #{@memory_store.inspect}"
       go_to_route(initial_url, render_view: false)
     rescue Exception => e
       puts "Exception: #{e}"

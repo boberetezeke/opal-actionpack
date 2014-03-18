@@ -11,7 +11,19 @@ class ActiveRecord
   end
 end
 
-class CalculatorsController
+class CalculatorsController < ActionController::Base
+  def initialize(params={})
+    super
+    @ivar = 1
+  end
+end
+
+class Nested
+  class ResultsController < ActionController::Base
+  end
+end
+
+class CalculatorsClientController
   class Show < ActionController::Base
     def initialize(params)
       super
@@ -46,10 +58,12 @@ describe Application do
 
     context "when launching the application with a show action" do
       it "should be true" do
+=begin
         show_controller = double('calculator_show_controller')
-        expect(CalculatorsController::Show).to receive(:new).with({id: '1'}).and_return(show_controller)
+        expect(CalculatorsController).to receive(:new).with({id: '1'}).and_return(show_controller)
         expect(show_controller).to receive(:add_bindings)
         application = Application.instance.launch("/calculators/1", object1)
+=end
       end
     end
   end
@@ -60,22 +74,32 @@ describe Application do
 
       it "matches if a show path with 1 arg" do
         action = Application::Action.new(route, :member, 'show', {id: '.*'})
-        expect(action.match_path(:show, '1')).to eq("1")
+        expect(action.match_path(:show, '1')).to eq(["1", {}])
+      end
+
+      it "matches if a show path with 1 arg and params" do
+        action = Application::Action.new(route, :member, 'show', {id: '.*'})
+        expect(action.match_path(:show, '1', extra: 1)).to eq(["1", {extra: 1}])
       end
 
       it "matches if a non-show member path with 1 arg" do
         action = Application::Action.new(route, :member, 'edit', {id: '.*'})
-        expect(action.match_path(:edit, '1')).to eq("1/edit")
+        expect(action.match_path(:edit, '1')).to eq(["1/edit", {}])
       end
 
       it "matches if a index path with 0 args" do
         action = Application::Action.new(route, :collection, 'index', {id: '.*'})
-        expect(action.match_path(:index)).to eq("")
+        expect(action.match_path(:index)).to eq(["", {}])
+      end
+
+      it "matches if a index path with params as args" do
+        action = Application::Action.new(route, :collection, 'index', {id: '.*'})
+        expect(action.match_path(:index, extra: 1)).to eq(["", {extra: 1}])
       end
 
       it "matches if a non-index collection path with 0 args" do
         action = Application::Action.new(route, :collection, 'new', {id: '.*'})
-        expect(action.match_path(:new)).to eq("new")
+        expect(action.match_path(:new)).to eq(["new", {}])
       end
 
       #it "raises an exception with a member path without 1 arg"
@@ -157,13 +181,16 @@ describe ActionView do
     let(:template) { double('template') }
 
     before do
+      @controller = CalculatorsController.new
     end
 
     it "renders from files" do
       action_view = ActionView.new
       expect(template).to receive(:render).with(action_view)
       expect(Template).to receive(:[]).with("a/b/c").and_return(template)
-      action_view.render(file: "a/b/c") 
+      action_view.render(@controller, file: "a/b/c") 
+
+      expect(action_view.instance_variable_get(:@ivar)).to eq(1)
     end
 
     context "when doing a partial" do
@@ -171,24 +198,25 @@ describe ActionView do
         action_view = ActionView.new(path: "a/b")
         expect(template).to receive(:render).with(action_view)
         expect(Template).to receive(:[]).with("a/b/_c").and_return(template)
-        action_view.render(partial: "c") 
+        action_view.render(@controller, partial: "c") 
       end
 
       it "renders from multi-directory path partials" do
         action_view = ActionView.new
         expect(template).to receive(:render).with(action_view)
         expect(Template).to receive(:[]).with("a/b/_c").and_return(template)
-        action_view.render(partial: "a/b/c") 
+        action_view.render(@controller, partial: "a/b/c") 
       end
     end
 
     it "renders from text" do
       action_view = ActionView.new
-      expect(action_view.render(text: "hello")).to eq("hello") 
+      expect(action_view.render(@controller, text: "hello")).to eq("hello") 
     end
   end
 
   describe "#link_to" do
+    # it should generate an anchor link with and without options
   end
 
   describe "#resolve_path" do
@@ -204,6 +232,11 @@ describe ActionView do
       expect(action_view.calculator_path("1")).to eq("/calculators/1")
     end
 
+    it "should handle show _path method with params" do
+      action_view = ActionView.new
+      expect(action_view.calculator_path("1", extra: 1)).to eq("/calculators/1?extra=1")
+    end
+
     it "should handle a non-show member _path method" do
       action_view = ActionView.new
       expect(action_view.edit_calculator_path("1")).to eq("/calculators/1/edit")
@@ -216,7 +249,7 @@ describe ActionView do
 
     it "should handle a index _path method with params" do
       action_view = ActionView.new
-      expect(action_view.calculators_path(extra: 1)).to eq("/calculators")
+      expect(action_view.calculators_path(extra: 1)).to eq("/calculators?extra=1")
     end
 
     it "should handle a non-index collection _path method" do
@@ -242,8 +275,27 @@ describe ActionController::Base do
   describe "#action_method" do
     it "should resolve_paths in the application" do
       expect(Application.instance).to receive(:resolve_path)
-      calculators_controller = CalculatorsController::Show.new({})
+      calculators_controller = CalculatorsClientController::Show.new({})
       calculators_controller.invoke_callback
+    end
+  end
+
+  describe "#view_path" do
+    it "should return the path to the view on a sinple controller" do
+      controller = CalculatorsController.new({})
+      expect(controller.view_path).to eq("calculators")
+    end
+
+    it "should return the path to the view on a sinple controller" do
+      controller = Nested::ResultsController.new({})
+      expect(controller.view_path).to eq("nested/results")
+    end
+  end
+
+  describe "#controller_root_name" do
+    it "should return a downcased name fo the controller class's root name" do
+      controller = CalculatorsController.new({})
+      expect(controller.controller_root_name("CalculatorsController")).to eq("calculators")
     end
   end
 end
