@@ -16,7 +16,7 @@ Gem::Specification.new do |gem|
                         and some rendering functionality. It doesn't do 
                         forms yet.
                       }
-  gem.homepage      = 'http://opalrb.org'
+  gem.homepage      = 'https://github.com/boberetezeke/opal-actionpack'
   gem.rdoc_options << '--main' << 'README' <<
                       '--line-numbers' <<
                       '--include' << 'opal'
