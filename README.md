@@ -23,6 +23,15 @@ Inside your `application.js.rb`:
 require 'action_pack'                 # to require the whole action pack lib
 ```
 
+## Testing
+
+There are two ways to run tests. You can run them inside of MRI
+for ease of testing and better debuggability or you can run them
+using Opal (as this is how it will actually be used).
+
+* To run in Opal do - rake
+* To run in MRI do - rspec spec
+
 
 ## Contributing
 
