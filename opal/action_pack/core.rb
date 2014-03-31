@@ -277,8 +277,8 @@ class Application
           controller_action_class = controller_client_class.const_get(action.name.capitalize)
           controller_action = controller_action_class.new(params)
           controller_action.add_bindings
-        rescue
-          puts "client class: #{controller_client_class_name}::#{action.name.capitalize} doesn't exist"
+        rescue Exception => e
+          puts "client class: #{controller_client_class_name}::#{action.name.capitalize} doesn't exist, #{e}"
         end
       rescue 
         puts "client class: #{controller_client_class_name} doesn't exist"
@@ -344,15 +344,18 @@ class Application
   end
 
   def initialize
-    @memory_store = ActiveRecord::MemoryStore.new
-    ActiveRecord::Base.connection = @memory_store
+    @store = get_store
+    ActiveRecord::Base.connection = @store
+  end
+
+  def get_store
+    ActiveRecord::MemoryStore.new
   end
 
   def launch(initial_url, initial_objects)
     begin
       @objects = [initial_objects]
       @objects.each { |object| object.save }
-      puts "memory_store = #{@memory_store.inspect}"
       go_to_route(initial_url, render_view: false)
     rescue Exception => e
       puts "Exception: #{e}"
@@ -406,7 +409,7 @@ class Application
   }
 
   def connect
-    @memory_store.on_change do |change_type, object|
+    @store.on_change do |change_type, object|
       route = "/" + ROUTE_MAP[object.class.to_s][:route]
       key = ROUTE_MAP[object.class.to_s][:key]
       case change_type
