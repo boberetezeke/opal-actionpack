@@ -1,4 +1,5 @@
 # Opal: ActiveRecord
+#
 
 ## Installation
 
