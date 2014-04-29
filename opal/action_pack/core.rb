@@ -15,6 +15,26 @@ class String
   end
 end
 
+class History
+  def self.push_state(state_object, title, url)
+    `window.history.pushState({}, title, url)`
+  end
+
+  def self.pop_state
+    `window.history.back()`
+  end
+
+  def self.on_pop_state(&block)
+    %x{
+      self = this;
+      window.onpopstate = function(event) {
+        block();
+      }
+    }
+  end
+end
+
+
 module PathHandler
   def resolve_path(root, *args)
     @application.resolve_path(root, *args)
@@ -401,6 +421,7 @@ class Application
   def go_to_route(url, options={})
     @current_route_action, @params = self.class.routes.match_url(url)
     @current_route_action.invoke_controller(@current_route_action, @params, options)
+    History.push_state({}, 'new route', url)
   end
 
   ROUTE_MAP = {
