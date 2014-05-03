@@ -372,14 +372,16 @@ class Application
     ActiveRecord::MemoryStore.new
   end
 
-  def launch(initial_url, initial_objects)
+  def launch(initial_objects_json)
     begin
-      @objects = [initial_objects]
+      initial_url = `window.location.pathname`
+      @objects = ActiveRecord::Base.new_objects_from_json(initial_objects_json)
+      puts "object from json = #{@objects}"
       @objects.each { |object| object.save }
       go_to_route(initial_url, render_view: false)
     rescue Exception => e
-      puts "Exception: #{e}"
-      e.backtrace[0..10].each do |trace|
+      puts "Application Exception: #{e}"
+      e.backtrace.each do |trace|
         puts trace
       end
     end
