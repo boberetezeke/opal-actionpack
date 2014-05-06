@@ -1,3 +1,44 @@
+class Template
+  def self.current_output_buffer
+    @output_buffer
+  end
+
+  def self.current_output_buffer=(output_buffer)
+    @output_buffer = output_buffer
+  end
+
+  def render(ctx = self)
+    self.class.current_output_buffer = OutputBuffer.new
+    ctx.instance_exec(self.class.current_output_buffer, &@body)
+  end
+
+  class OutputBuffer
+    def initialize
+      @buffer_stack = []
+      @buffer = []
+    end
+
+    def push_buffer
+      @buffer_stack.push(@buffer)
+      @buffer = []
+    end
+
+    def pop_buffer
+      @buffer = @buffer_stack.pop
+    end
+
+    def append(str)
+      @buffer << str
+    end
+
+    alias append= append
+
+    def join
+      @buffer.join
+    end
+  end
+end
+
 class String
   def capitalize
     self[0..0].upcase + self[1..-1]
@@ -13,11 +54,16 @@ class String
   def pluralize
     self + "s"
   end
+
+  # OPAL-CHG-4: implement
+  def html_safe
+    self
+  end
 end
 
 class History
   def self.push_state(state_object, title, url)
-    `window.history.pushState({}, title, url)`
+    #`window.history.pushState({}, title, url)`
   end
 
   def self.pop_state
@@ -63,7 +109,7 @@ class ActionController
     end
 
     def render_template
-      ActionView.new.render(self, file: render_path)
+      ActionView::Renderer.new.render(self, file: render_path)
     end
 
     def invoke_action(action)
@@ -90,59 +136,101 @@ class ActionController
   end
 end
 
-class ActionView
-  include PathHandler
-  attr_reader :absolute_path
+module ActionView
+  class Renderer
+    include ::ActionView::Helpers::FormHelper
+    include ::ActionView::RecordIdentifier
+    include ::ActionView::ModelNaming
 
-  INITIALIZE_DEFAULTS={locals: {}, path: ""}
-  def initialize(options={})
-    options = INITIALIZE_DEFAULTS.merge(options) 
-    @path = options[:path]
-    @application = Application.instance
-    # Opal / RMI diff ("".split(/\//) == [""] vs []
-    if @path == ""
-      @path_parts = []
-    else
-      @path_parts = @path.split(/\//)
-    end
-    @locals = options[:locals]
-    @absolute_path = ""
-  end
+    include PathHandler
+    attr_reader :absolute_path
 
-  def render(controller, options={}, locals={}, &block)
-    if options[:file]
-      render_path = options[:file]
-      @absolute_path = render_path
-    elsif options[:partial]
-      partial_parts = options[:partial].split(/\//)
-      render_path = (@path_parts + partial_parts[0..-2] + ["_" + partial_parts[-1]]).join("/")
-    elsif options[:text]
-      return options[:text]
-    end
-    @locals = locals
-    copy_instance_variables_from(controller)
-    Template[render_path].render(self)
-  end
-
-  def copy_instance_variables_from(object)
-    object.instance_variables.each do |ivar|
-      self.instance_variable_set(ivar, object.instance_variable_get(ivar))
-    end
-  end
-
-  def link_to(text, path, options={})
-    "<a href=\"#{path}\"" + options.map{|k,v| "#{k}=\"#{v}\""}.join(' ') + ">#{text}</a>"
-  end
-
-  def method_missing(sym, *args, &block)
-    sym_to_s = sym.to_s
-    if @locals.has_key?(sym_to_s)
-      return @locals[sym_to_s]
-    elsif @locals.has_key?(sym)
-      return @locals[sym]
+    INITIALIZE_DEFAULTS={locals: {}, path: ""}
+    def initialize(options={})
+      options = INITIALIZE_DEFAULTS.merge(options) 
+      @path = options[:path]
+      @application = Application.instance
+      # Opal / RMI diff ("".split(/\//) == [""] vs []
+      if @path == ""
+        @path_parts = []
+      else
+        @path_parts = @path.split(/\//)
+      end
+      @locals = options[:locals]
+      @absolute_path = ""
     end
 
-    super
+    def render(controller, options={}, locals={}, &block)
+      puts "in render (start)"
+      options = controller if controller.is_a?(Hash)
+
+      if options[:file]
+        render_path = options[:file]
+        @absolute_path = render_path
+      elsif options[:partial]
+        partial_parts = options[:partial].split(/\//)
+        render_path = (@path_parts + partial_parts[0..-2] + ["_" + partial_parts[-1]]).join("/")
+      elsif options[:text]
+        return options[:text]
+      end
+      @locals = locals
+      copy_instance_variables_from(controller)
+      Template[render_path].render(self)
+    end
+
+    def capture(*args, &block)
+      puts "capture: args = #{args}"
+      Template.current_output_buffer.push_buffer
+      value = block.call(*args)
+      Template.current_output_buffer.pop_buffer
+      puts "capture: value = #{value}"
+      if value.is_a?(Array)
+        value.join
+      else
+        value
+      end
+    end
+
+    def copy_instance_variables_from(object)
+      object.instance_variables.each do |ivar|
+        self.instance_variable_set(ivar, object.instance_variable_get(ivar))
+      end
+    end
+
+    def content_for(sym, &block)
+      # FIXME: need to implement
+    end
+
+    # OPAL-CHG-3 - need to implement all/most of UrlHelper
+    def url_for(url_for_options)
+      # FIXME: need to implement
+      "some_url"
+    end
+
+    def link_to(text, path, options={})
+      "<a href=\"#{path}\"" + options.map{|k,v| "#{k}=\"#{v}\""}.join(' ') + ">#{text}</a>"
+    end
+
+    # NOTE: stolen from url_helper
+    def token_tag(token=nil)
+      # no need for token_tag as we won't do real submits
+      ""
+    end
+
+    def method_tag(method)
+      tag('input', type: 'hidden', name: '_method', value: method.to_s)
+    end
+
+    def method_missing(sym, *args, &block)
+      sym_to_s = sym.to_s
+      if @locals.has_key?(sym_to_s)
+        return @locals[sym_to_s]
+      elsif @locals.has_key?(sym)
+        return @locals[sym]
+      end
+
+      super
+    end
   end
 end
 
@@ -248,7 +336,7 @@ class Application
       if @action_type == :member
         if args.size == 1
           object = args.first
-          if object.class == String
+          if object.is_a?(String) || object.is_a?(Numeric)
             object_id = object
           else
             object_id = object.id
@@ -281,14 +369,22 @@ class Application
     end
 
     def invoke_controller(action, params, options)
+      puts "invoke_controller#render_view 0"
       if options[:render_view]
+        puts "invoke_controller#render_view 1"
         controller_class_name = "#{@route.name.capitalize}Controller"
+        puts "invoke_controller#render_view 2"
         controller_class = Object.const_get(controller_class_name)
+        puts "invoke_controller#render_view 3"
         controller = controller_class.new(params)
+        puts "invoke_controller#render_view 4"
         controller.invoke_action(action)
+        puts "invoke_controller#render_view 5"
         html = controller.render_template
+        puts "invoke_controller#render_view 6, html = #{html}"
         Document.find(options[:selector]).html = html
       end
+      puts "invoke_controller#render_view 7"
 
       controller_client_class_name = "#{@route.name.capitalize}ClientController"
       begin
@@ -374,7 +470,11 @@ class Application
 
   def launch(initial_objects_json)
     begin
-      initial_url = `window.location.pathname`
+      initial_path = `window.location.href`
+      initial_url = /(\/[^\/]*)$/.match(initial_path)[1]
+
+      puts "initial_path = #{initial_path}"
+      puts "initial_url = #{initial_url}"
       @objects = ActiveRecord::Base.new_objects_from_json(initial_objects_json)
       puts "object from json = #{@objects}"
       @objects.each { |object| object.save }
@@ -421,8 +521,11 @@ class Application
   end
 
   def go_to_route(url, options={})
+    puts "go_to_route 1"
     @current_route_action, @params = self.class.routes.match_url(url)
+    puts "go_to_route 2"
     @current_route_action.invoke_controller(@current_route_action, @params, options)
+    puts "go_to_route 3"
     History.push_state({}, 'new route', url)
   end
 
