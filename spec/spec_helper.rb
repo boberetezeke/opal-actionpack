@@ -2,7 +2,8 @@ if RUBY_ENGINE == "opal"
   require 'opal-rspec'
   require 'opal-actionpack'
 else
-  require_relative '../opal/action_pack/core'
+  $:.insert(0, "opal")
+  require("action_pack")
 end
 
 module TestUnitHelpers

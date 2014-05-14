@@ -161,7 +161,6 @@ module ActionView
     end
 
     def render(controller, options={}, locals={}, &block)
-      puts "in render (start)"
       options = controller if controller.is_a?(Hash)
 
       if options[:file]
@@ -470,10 +469,15 @@ class Application
 
   def launch(initial_objects_json)
     begin
-      initial_path = `window.location.href`
-      initial_url = /(\/[^\/]*)$/.match(initial_path)[1]
+      initial_path = `window.location.pathname`
+      initial_hash = `window.location.hash`
+      initial_search = `window.location.search`
+
+      initial_url = initial_path + initial_search
 
       puts "initial_path = #{initial_path}"
+      puts "initial_hash = #{initial_hash}"
+      puts "initial_search = #{initial_search}"
       puts "initial_url = #{initial_url}"
       @objects = ActiveRecord::Base.new_objects_from_json(initial_objects_json)
       puts "object from json = #{@objects}"
