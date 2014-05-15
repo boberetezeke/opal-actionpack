@@ -210,7 +210,12 @@ module ActionView
       end
       @locals = options[:locals]
       copy_instance_variables_from(@controller)
-      Template[render_path].render(self)
+      template = Template[render_path]
+      if !template
+        raise "unable to find template: #{render_path} in paths: #{Template.paths}"
+      else
+        template.render(self)
+      end
     end
 
     def capture(*args, &block)
@@ -244,6 +249,14 @@ module ActionView
 
     def link_to(text, path, options={})
       "<a href=\"#{path}\"" + options.map{|k,v| "#{k}=\"#{v}\""}.join(' ') + ">#{text}</a>"
+    end
+
+    DEFAULT_POLYMORPHIC_PATH_OPTIONS = {format: :post}
+    def polymorphic_path(record, options={})
+      options = DEFAULT_POLYMORPHIC_PATH_OPTIONS.merge(options)
+      #OPAL-CHG-2
+      #Application.routes.match_path(record.class.to_s, options[:format], record.id)
+      "/#{record.class.to_s}/#{record.id}"
     end
 
     # NOTE: stolen from url_helper

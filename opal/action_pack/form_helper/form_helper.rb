@@ -437,9 +437,7 @@ module ActionView
           method: method
         }.merge(options[:html])
 
-        #OPAL-CHG-2
-        #options[:url] ||= polymorphic_path(record, format: options.delete(:format))
-        options[:url] ||= "/calculators/#{record.id}"
+        options[:url] ||= polymorphic_path(record, format: options.delete(:format))
       end
       private :apply_form_for_options!
 
