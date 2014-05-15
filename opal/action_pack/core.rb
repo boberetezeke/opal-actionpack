@@ -1,39 +1,64 @@
 class Template
   def self.current_output_buffer
+    #puts "in self.current_output_buffer: (#{@output_buffer_stack.size})"
     @output_buffer
   end
 
   def self.current_output_buffer=(output_buffer)
+    @output_buffer_stack ||= []
+    @output_buffer_stack.push(@output_buffer) 
     @output_buffer = output_buffer
   end
 
+  def self.output_buffer_stack
+    @output_buffer_stack ||= []
+  end
+
+  def self.pop_output_buffer
+    @output_buffer = @output_buffer_stack.pop
+  end
+
   def render(ctx = self)
-    self.class.current_output_buffer = OutputBuffer.new
-    ctx.instance_exec(self.class.current_output_buffer, &@body)
+    self.class.current_output_buffer = OutputBuffer.new(self.class.output_buffer_stack.size)
+    result = ctx.instance_exec(self.class.current_output_buffer, &@body)
+    self.class.pop_output_buffer
+    result
   end
 
   class OutputBuffer
-    def initialize
+    def initialize(id)
+      @id = id
+      @buffer_id = 0
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): initialize: #{@buffer.inspect}"
       @buffer_stack = []
       @buffer = []
     end
 
     def push_buffer
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): pushing buffer: #{@buffer.inspect}"
+      @buffer_id += 1
       @buffer_stack.push(@buffer)
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): pushing to buffer stack: #{@buffer_stack.inspect}"
       @buffer = []
     end
 
     def pop_buffer
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): popping buffer: #{@buffer.inspect}"
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): popping buffer stack: #{@buffer_stack.inspect}"
+      @buffer_id -= 1
       @buffer = @buffer_stack.pop
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): after popping buffer: #{@buffer.inspect}"
     end
 
     def append(str)
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): append: #{str.inspect}"
       @buffer << str
     end
 
     alias append= append
 
     def join
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): join: #{@buffer.join.inspect}"
       @buffer.join
     end
   end
@@ -63,7 +88,7 @@ end
 
 class History
   def self.push_state(state_object, title, url)
-    #`window.history.pushState({}, title, url)`
+    `window.history.pushState({}, title, url)`
   end
 
   def self.pop_state
@@ -109,7 +134,7 @@ class ActionController
     end
 
     def render_template
-      ActionView::Renderer.new.render(self, file: render_path)
+      ActionView::Renderer.new(self, path: render_path).render_top_view
     end
 
     def invoke_action(action)
@@ -146,8 +171,9 @@ module ActionView
     attr_reader :absolute_path
 
     INITIALIZE_DEFAULTS={locals: {}, path: ""}
-    def initialize(options={})
+    def initialize(controller, options={})
       options = INITIALIZE_DEFAULTS.merge(options) 
+      @controller = controller
       @path = options[:path]
       @application = Application.instance
       # Opal / RMI diff ("".split(/\//) == [""] vs []
@@ -155,34 +181,44 @@ module ActionView
         @path_parts = []
       else
         @path_parts = @path.split(/\//)
+        @path_parts = @path_parts[0..-2] unless @path_parts.empty?
       end
       @locals = options[:locals]
       @absolute_path = ""
     end
 
-    def render(controller, options={}, locals={}, &block)
-      options = controller if controller.is_a?(Hash)
+    def render_top_view
+      render(file: @path)
+    end
 
+    DEFAULT_RENDER_OPTIONS = {locals: {}}
+    def render(options={}, &block)
+      options = DEFAULT_RENDER_OPTIONS.merge(options)
       if options[:file]
         render_path = options[:file]
         @absolute_path = render_path
       elsif options[:partial]
         partial_parts = options[:partial].split(/\//)
         render_path = (@path_parts + partial_parts[0..-2] + ["_" + partial_parts[-1]]).join("/")
+
+        new_options = options.dup
+        new_options.delete(:partial)
+        new_options.merge!(file: render_path)
+        return self.class.new(@controller).render(new_options, &block)
       elsif options[:text]
         return options[:text]
       end
-      @locals = locals
-      copy_instance_variables_from(controller)
+      @locals = options[:locals]
+      copy_instance_variables_from(@controller)
       Template[render_path].render(self)
     end
 
     def capture(*args, &block)
-      puts "capture: args = #{args}"
+      #puts "capture: args = #{args}"
       Template.current_output_buffer.push_buffer
       value = block.call(*args)
       Template.current_output_buffer.pop_buffer
-      puts "capture: value = #{value}"
+      #puts "capture: value = #{value}"
       if value.is_a?(Array)
         value.join
       else
@@ -368,22 +404,15 @@ class Application
     end
 
     def invoke_controller(action, params, options)
-      puts "invoke_controller#render_view 0"
       if options[:render_view]
-        puts "invoke_controller#render_view 1"
         controller_class_name = "#{@route.name.capitalize}Controller"
-        puts "invoke_controller#render_view 2"
         controller_class = Object.const_get(controller_class_name)
-        puts "invoke_controller#render_view 3"
         controller = controller_class.new(params)
-        puts "invoke_controller#render_view 4"
         controller.invoke_action(action)
-        puts "invoke_controller#render_view 5"
         html = controller.render_template
-        puts "invoke_controller#render_view 6, html = #{html}"
+        puts "html = #{html}"
         Document.find(options[:selector]).html = html
       end
-      puts "invoke_controller#render_view 7"
 
       controller_client_class_name = "#{@route.name.capitalize}ClientController"
       begin
