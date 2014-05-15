@@ -36,3 +36,4 @@ require 'action_pack/form_helper/tags/text_area'
 require 'action_pack/form_helper/tags/url_field'
 
 require 'action_pack/core'
+require 'action_pack/action_syncer'
