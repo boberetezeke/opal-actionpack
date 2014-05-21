@@ -106,7 +106,19 @@ describe Application do
       #it "raises an exception with a collection path without 0 args"
     end
 
-    #describe "#match"
+    describe "#match" do
+      let(:route) { double('route') }
+
+      it "matches a show url" do
+        action = Application::Action.new(route, :member, :show, [{id: '.*'}])
+        expect(action.match(["show"], {})).to be_true
+      end
+
+      it "doesn't match a new url" do
+        action = Application::Action.new(route, :member, :show, [{id: '.*'}])
+        expect(action.match(["new"], {})).to be_false
+      end
+    end
   end
 
   describe Application::Route do

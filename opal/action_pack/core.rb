@@ -69,6 +69,10 @@ class String
     self[0..0].upcase + self[1..-1]
   end
 
+  def camelize
+    self.split(/_/).map{|s| s.capitalize}.join
+  end
+
   def singularize
     if m = /^(.*)s$/.match(self)
       return m[1]
@@ -83,6 +87,12 @@ class String
   # OPAL-CHG-4: implement
   def html_safe
     self
+  end
+end
+
+class Hash
+  def blank?
+    self.empty?
   end
 end
 
@@ -137,6 +147,10 @@ class ActionController
       ActionView::Renderer.new(self, path: render_path).render_top_view
     end
 
+    def render(name)
+      @render_path = "views" + "/" + view_path + "/" + name
+    end
+
     def invoke_action(action)
       # set up default render path
       @render_path = "views" + "/" + view_path + "/" + action.name
@@ -145,12 +159,14 @@ class ActionController
 
     def view_path
       controller_parts = self.class.to_s.split(/::/)
-      controller_parts = controller_parts[0..-2].map{|part| part.downcase} + [controller_root_name(controller_parts[-1])]
+      puts "controller_parts = #{controller_parts}"
+      controller_parts = controller_parts[0..-2].map{|part| part.underscore} + [controller_root_name(controller_parts[-1])]
+      puts "controller_parts = #{controller_parts}"
       controller_parts.join("/")
     end
 
     def controller_root_name(controller_name)
-      /^(.*)Controller$/.match(controller_name)[1].downcase
+      /^(.*)Controller$/.match(controller_name)[1].underscore
     end
 
     private
@@ -173,15 +189,27 @@ module ActionView
     INITIALIZE_DEFAULTS={locals: {}, path: ""}
     def initialize(controller, options={})
       options = INITIALIZE_DEFAULTS.merge(options) 
+
       @controller = controller
-      @path = options[:path]
       @application = Application.instance
-      # Opal / RMI diff ("".split(/\//) == [""] vs []
-      if @path == ""
-        @path_parts = []
+
+      helper_module = options[:helper_module]
+      helper_module = helper_module_from_controller(@controller) unless helper_module
+
+      include_helpers(helper_module)
+
+      if options[:path_parts]
+        @path_parts = options[:path_parts].dup
+        @path = @path_parts.join('/')
       else
-        @path_parts = @path.split(/\//)
-        @path_parts = @path_parts[0..-2] unless @path_parts.empty?
+        @path = options[:path]
+        # Opal / RMI diff ("".split(/\//) == [""] vs []
+        if @path == ""
+          @path_parts = []
+        else
+          @path_parts = @path.split(/\//)
+          @path_parts = @path_parts[0..-2] unless @path_parts.empty?
+        end
       end
       @locals = options[:locals]
       @absolute_path = ""
@@ -199,12 +227,21 @@ module ActionView
         @absolute_path = render_path
       elsif options[:partial]
         partial_parts = options[:partial].split(/\//)
-        render_path = (@path_parts + partial_parts[0..-2] + ["_" + partial_parts[-1]]).join("/")
+        puts "render:partial: #{partial_parts}, #{@path_parts}"
+
+        helper_module = nil
+        if partial_parts.size == 1
+          path_parts = @path_parts
+        else
+          helper_module = helper_module_from_view_path(partial_parts.first)
+          path_parts = @path_parts[0..-2]
+        end
+        render_path = (path_parts + partial_parts[0..-2] + ["_" + partial_parts[-1]]).join("/")
 
         new_options = options.dup
         new_options.delete(:partial)
         new_options.merge!(file: render_path)
-        return self.class.new(@controller).render(new_options, &block)
+        return self.class.new(@controller, path_parts: @path_parts, helper_module: helper_module).render(new_options, &block)
       elsif options[:text]
         return options[:text]
       end
@@ -235,6 +272,29 @@ module ActionView
       object.instance_variables.each do |ivar|
         self.instance_variable_set(ivar, object.instance_variable_get(ivar))
       end
+    end
+
+    def include_helpers(helper_module)
+      application_helper = Object.const_get('ApplicationHelper')
+      if application_helper
+        self.class.include(application_helper)
+      end
+
+      if helper_module
+        self.class.include(helper_module)
+      end
+    end
+
+    def helper_module_from_controller(controller)
+      controller_class_name = controller.class.to_s
+      controller_name = /^(.*)Controller$/.match(controller_class_name)[1]
+      helper_module_name = "#{controller_name}Helper"
+      Object.const_get(helper_module_name)
+    end
+
+    def helper_module_from_view_path(view_path)
+      helper_module_name = "#{view_path.camelize}Helper"
+      Object.const_get(helper_module_name)
     end
 
     def content_for(sym, &block)
@@ -300,7 +360,7 @@ class Application
       parts, params = to_parts(url)
 
       @routes.each do |route|
-        #puts "matching parts=#{parts.inspect}, route=#{route.inspect}"
+        puts "Router#match_url: matching parts=#{parts.inspect}, route=#{route.inspect}"
         if action = route.match(parts, params)
           return [action, params] 
         end
@@ -310,6 +370,7 @@ class Application
     end
 
     def match_path(resource_name, action_name, *args)
+      puts "Router#match_path(resource_name: #{resource_name}, action: #{action_name}, args: #{args})"
       @routes.each do |route|
         action = route.match_path(resource_name, action_name, *args)
         return action if action
@@ -351,17 +412,20 @@ class Application
     end
 
     def match(parts, params)
-      #puts "Action:match: parts: #{parts.inspect}, name: #{@name}, action_parts: #{@parts.inspect}"
+      puts "Action:match: parts: #{parts.inspect}, name: #{@name}, action_parts: #{@parts.inspect}"
       return false if parts.size != @parts.size
       return true if parts.size == 0
 
       @parts.each_with_index do |part, index|
-        if part.class == String
+        puts "part = #{part}"
+        if part.is_a?(String)
+          puts "part: #{part}, matches: #{parts[index]}"
           return true if /#{part}/.match(parts[index])
         else
           param_key = part.keys.first
           matcher = /(#{part.values.first})/
           if m = matcher.match(parts[index])
+            puts "matcher: #{matcher}, matches #{parts[index]}"
             params[param_key] = m[1]
             return true
           end
@@ -371,7 +435,7 @@ class Application
     end
 
     def match_path(action_name, *args)
-      #puts "action_name = #{action_name}, name = #{@name}, args = #{args.inspect}"
+      puts "Action#match_path: action_name = #{action_name}, name = #{@name}, args = #{args.inspect}"
       params = {}
       return [false, params] unless @name.to_s == action_name.to_s
 
@@ -402,7 +466,7 @@ class Application
         end
       else
         if args.size == 0
-          #puts "Action#match_path: @name = #{@name}"
+          puts "Action#match_path: @name = #{@name}"
           if @name.to_s == 'index'
             # FIXME: need to url encode parameters
             action_root = ""
@@ -418,7 +482,7 @@ class Application
 
     def invoke_controller(action, params, options)
       if options[:render_view]
-        controller_class_name = "#{@route.name.capitalize}Controller"
+        controller_class_name = "#{@route.name.camelize}Controller"
         controller_class = Object.const_get(controller_class_name)
         controller = controller_class.new(params)
         controller.invoke_action(action)
@@ -427,7 +491,7 @@ class Application
         Document.find(options[:selector]).html = html
       end
 
-      controller_client_class_name = "#{@route.name.capitalize}ClientController"
+      controller_client_class_name = "#{@route.name.camelize}ClientController"
       begin
         controller_client_class = Object.const_get(controller_client_class_name)
         begin
@@ -452,15 +516,15 @@ class Application
     def initialize(name, options)
       @name = name.to_s
       @actions = [
-        Action.new(self, :member,     :show,  [{id: '.*'}]),
         Action.new(self, :collection, :new,   ['new']),
         Action.new(self, :member,     :edit,  [{id: '.*'}, 'edit']),
+        Action.new(self, :member,     :show,  [{id: '.*'}]),
         Action.new(self, :collection, :index, [])
       ]
     end
 
     def match(parts, params)
-      #puts "Route:match: parts: #{parts}, name: #{@name}"
+      puts "Route:match: parts: #{parts}, name: #{@name}"
       return nil unless @name == parts[0]
       @actions.each do |action|
         return action if action.match(parts[1..-1], params)
@@ -469,14 +533,14 @@ class Application
     end
 
     def match_path(resource_name, action_name, *args)
-      #puts "Route#match_path, name = #{@name}, resource_name = #{resource_name}"
+      puts "Route#match_path, name = #{@name}, resource_name = #{resource_name}"
       return nil unless @name.to_s == resource_name.to_s
       @actions.each do |action|
         action_path, params = action.match_path(action_name, *args)
         # FIXME: need to url encode parameters
         params_string = params.map{|key, value| "#{key}=#{value}"}.join("&")
 
-        #puts "action_path = #{action_path}"
+        puts "action_path = #{action_path}"
         if action_path
           if action_path == ""
             url =  "/#{resource_name}"
@@ -535,7 +599,8 @@ class Application
 
   def resolve_path(path, *args)
     # FIXME: can't detect plural by checking for trailing 's'
-    m = /^((\w+)_)?((\w+?)(s)?)$/.match(path)
+      puts "resolve_path: #{path}, args = #{args}"
+    m = /^(([^_]+)_)?((\w+?)(s)?)$/.match(path)
     if m
       action_with_underscore = m[1]
       action = m[2]
@@ -543,18 +608,18 @@ class Application
       resource_root = m[4]
       is_plural = m[5]
 
-      #puts "matched pattern: #{m}, action = #{action.inspect}, resource = #{resource}, is_plural=#{is_plural.inspect}"
+      puts "resolve_path: matched pattern: #{m}, action = #{action.inspect}, resource = #{resource}, is_plural=#{is_plural.inspect}"
       if action_with_underscore
-        #puts "multi part path, action = #{action}"
+        puts "resolve_path: multi part path, action = #{action}"
         if !is_plural
           resource = resource.pluralize
         end
       else
         if is_plural
-          #puts "single part path, plural"
+          puts "resolve_path: single part path, plural"
           action = 'index'
         else
-          #puts "single part path, singular"
+          puts "resolve_path: single part path, singular"
           resource = resource.pluralize
           action = 'show'
         end
@@ -567,11 +632,11 @@ class Application
   end
 
   def go_to_route(url, options={})
-    puts "go_to_route 1"
+    puts "go_to_route: url = #{url}"
     @current_route_action, @params = self.class.routes.match_url(url)
-    puts "go_to_route 2"
+    puts "go_to_route: action = #{@current_route_action.name}, params = #{@params}"
     @current_route_action.invoke_controller(@current_route_action, @params, options)
-    puts "go_to_route 3"
+    puts "go_to_route: after invoke_controller"
     History.push_state({}, 'new route', url)
   end
 
