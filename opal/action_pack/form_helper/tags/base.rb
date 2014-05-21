@@ -18,7 +18,7 @@ module ActionView
           @options = options
           #@auto_index = retrieve_autoindex(Regexp.last_match.pre_match) if Regexp.last_match
           last_match = $~
-          @auto_index = retrieve_autoindex(last_match.pre_match) if last_match
+          #@auto_index = retrieve_autoindex(last_match.pre_match) if last_match
         end
 
         # This is what child classes implement.
