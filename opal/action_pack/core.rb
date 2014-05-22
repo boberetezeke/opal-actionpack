@@ -96,6 +96,19 @@ class Hash
   end
 end
 
+class Object
+  def capture_exception
+    begin
+      yield
+    rescue Exception => e
+      puts "Exception: #{e}"
+      e.backtrace[0..10].each do |bt|
+        puts bt
+      end
+    end      
+  end
+end
+
 class History
   def self.push_state(state_object, title, url)
     `window.history.pushState({}, title, url)`
@@ -138,9 +151,12 @@ class ActionController
 
     attr_reader :params
 
+    class BoundEvent < Struct.new(:event, :selector); end
+
     def initialize(params)
       @application = Application.instance
       @params = params
+      @bound_events = {}
     end
 
     def render_template
@@ -167,6 +183,46 @@ class ActionController
 
     def controller_root_name(controller_name)
       /^(.*)Controller$/.match(controller_name)[1].underscore
+    end
+
+    def go_to_route(*args, &block)
+      if args.last.is_a?(Hash)
+        new_args = args[0..-2]
+        options = args.last
+      else
+        options = {}
+      end
+
+      manual_unbind = options.delete(:manual_unbind)
+      unbind_all_events unless manual_unbind
+
+      @application.go_to_route(*(new_args + [options]), &block)
+    end
+
+    def bind_event(selector, event)
+      @bound_events[selector] = BoundEvent.new(event, selector)
+      Element.find(selector).on(event) do
+        puts "#{selector}: #{event}"
+        capture_exception do
+          yield
+        end
+        false
+      end
+    end
+    
+    def unbind_event(selector, event)
+      bound_event = @bound_events.delete(selector)
+      Element.find(bound_event.selector).off(bound_event.event) 
+    end
+
+    def unbind_all_events
+      @bound_events.values.each {|bound_event| unbind_event(bound_event.selector, bound_event.event)}
+    end
+
+    def unbind_events(*selectors)
+      selectors.flatten.each do |selector| 
+        unbind_event(selector)
+      end
     end
 
     private
@@ -492,18 +548,27 @@ class Application
       end
 
       controller_client_class_name = "#{@route.name.camelize}ClientController"
+      controller_client_class = nil
+      controller_action_class = nil
+
       begin
         controller_client_class = Object.const_get(controller_client_class_name)
-        begin
-          controller_action_class = controller_client_class.const_get(action.name.capitalize)
-          controller_action = controller_action_class.new(params)
-          controller_action.add_bindings
-        rescue Exception => e
-          puts "client class: #{controller_client_class_name}::#{action.name.capitalize} doesn't exist, #{e}"
-        end
-      rescue 
-        puts "client class: #{controller_client_class_name} doesn't exist"
+      rescue Exception => e
+        puts "INFO: client class: #{controller_client_class_name} doesn't exist"
       end
+
+      return unless controller_client_class
+
+      begin
+        controller_action_class = controller_client_class.const_get(action.name.capitalize)
+      rescue Exception => e
+        puts "INFO: client action class: #{controller_client_class_name}::#{action.name.capitalize} doesn't exist, #{e}"
+      end
+
+      return unless controller_action_class
+
+      controller_action = controller_action_class.new(params)
+      controller_action.add_bindings
     end
   end
 
@@ -574,7 +639,7 @@ class Application
   end
 
   def launch(initial_objects_json)
-    begin
+    capture_exception do
       initial_path = `window.location.pathname`
       initial_hash = `window.location.hash`
       initial_search = `window.location.search`
@@ -589,11 +654,6 @@ class Application
       puts "object from json = #{@objects}"
       @objects.each { |object| object.save }
       go_to_route(initial_url, render_view: false)
-    rescue Exception => e
-      puts "Application Exception: #{e}"
-      e.backtrace.each do |trace|
-        puts trace
-      end
     end
   end
 
