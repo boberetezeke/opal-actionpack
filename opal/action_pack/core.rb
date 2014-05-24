@@ -88,11 +88,39 @@ class String
   def html_safe
     self
   end
+
+  def blank?
+    self.empty?
+  end
+end
+
+class Array
+  def blank?
+    self.empty?
+  end
 end
 
 class Hash
   def blank?
     self.empty?
+  end
+end
+
+class TrueClass
+  def blank?
+    false
+  end
+end
+
+class FalseClass
+  def blank?
+    false
+  end
+end
+
+class NilClass
+  def blank?
+    true
   end
 end
 
@@ -106,6 +134,10 @@ class Object
         puts bt
       end
     end      
+  end
+
+  def present?
+    !blank?
   end
 end
 
@@ -153,14 +185,44 @@ class ActionController
 
     class BoundEvent < Struct.new(:event, :selector); end
 
+    def self.helper_method(sym)
+      if !defined?(@@helper_methods)
+        @@helper_methods = {}
+      end
+      @@helper_methods[sym] = true
+    end
+
+    def self.helper_methods
+      if !defined?(@@helper_methods)
+        @@helper_methods = {}
+      end
+      @@helper_methods
+    end
+
     def initialize(params)
       @application = Application.instance
       @params = params
       @bound_events = {}
     end
 
-    def render_template
-      ActionView::Renderer.new(self, path: render_path).render_top_view
+    def helper_methods
+      self.class.helper_methods
+    end
+
+    def render_template(content_fors={})
+      renderer = ActionView::Renderer.new(self, path: render_path)
+      top_view_html = renderer.render_top_view
+      content_for_htmls = {}
+      content_fors.each do |key, selector|
+        content_for_html = renderer.content_fors[key]
+        puts "content for #{key} = #{content_for_html}"
+        content_for_htmls[selector] = content_for_html
+      end
+      [top_view_html, content_for_htmls]
+    end
+
+    def session
+      @application.session
     end
 
     def render(name)
@@ -240,7 +302,7 @@ module ActionView
     include ::ActionView::ModelNaming
 
     include PathHandler
-    attr_reader :absolute_path
+    attr_reader :absolute_path, :content_fors
 
     INITIALIZE_DEFAULTS={locals: {}, path: ""}
     def initialize(controller, options={})
@@ -248,6 +310,9 @@ module ActionView
 
       @controller = controller
       @application = Application.instance
+      @top_renderer = options[:top_renderer] || self
+
+      @content_fors = {}
 
       helper_module = options[:helper_module]
       helper_module = helper_module_from_controller(@controller) unless helper_module
@@ -297,7 +362,7 @@ module ActionView
         new_options = options.dup
         new_options.delete(:partial)
         new_options.merge!(file: render_path)
-        return self.class.new(@controller, path_parts: @path_parts, helper_module: helper_module).render(new_options, &block)
+        return self.class.new(@controller, path_parts: @path_parts, helper_module: helper_module, top_renderer: @top_renderer).render(new_options, &block)
       elsif options[:text]
         return options[:text]
       end
@@ -355,6 +420,10 @@ module ActionView
 
     def content_for(sym, &block)
       # FIXME: need to implement
+      puts "content_for(entry): sym = #{sym}"
+      content = capture(&block)
+      puts "content_for: sym = #{sym}, content = #{content}"
+      @top_renderer.content_fors[sym] = content
     end
 
     # OPAL-CHG-3 - need to implement all/most of UrlHelper
@@ -391,7 +460,11 @@ module ActionView
         return @locals[sym_to_s]
       elsif @locals.has_key?(sym)
         return @locals[sym]
+      elsif @controller.helper_methods.has_key?(sym)
+        return @controller.send(sym)
       end
+
+      puts "Renderer method_missing: #{sym}, locals = #{@locals}, helper_methods = #{@controller.helper_methods}"
 
       super
     end
@@ -542,9 +615,12 @@ class Application
         controller_class = Object.const_get(controller_class_name)
         controller = controller_class.new(params)
         controller.invoke_action(action)
-        html = controller.render_template
+        html, content_for_htmls = controller.render_template(options[:content_for] || {})
         puts "html = #{html}"
         Document.find(options[:selector]).html = html
+        content_for_htmls.each do |selector, html|
+          Document.find(selector).html = html
+        end
       end
 
       controller_client_class_name = "#{@route.name.camelize}ClientController"
@@ -629,6 +705,8 @@ class Application
     @@application = new
   end
 
+  attr_reader :session
+
   def initialize
     @store = get_store
     ActiveRecord::Base.connection = @store
@@ -638,7 +716,7 @@ class Application
     ActiveRecord::MemoryStore.new
   end
 
-  def launch(initial_objects_json)
+  def launch(initial_objects_json, session={})
     capture_exception do
       initial_path = `window.location.pathname`
       initial_hash = `window.location.hash`
@@ -653,6 +731,7 @@ class Application
       @objects = ActiveRecord::Base.new_objects_from_json(initial_objects_json)
       puts "object from json = #{@objects}"
       @objects.each { |object| object.save }
+      @session = JSON.parse(session)
       go_to_route(initial_url, render_view: false)
     end
   end
