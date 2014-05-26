@@ -287,6 +287,10 @@ class ActionController
       end
     end
 
+    def current_path
+      `window.location.pathname`
+    end
+
     private
 
     def render_path
@@ -616,9 +620,10 @@ class Application
         controller = controller_class.new(params)
         controller.invoke_action(action)
         html, content_for_htmls = controller.render_template(options[:content_for] || {})
-        puts "html = #{html}"
+        puts "invoke_controller: html = #{html}"
         Document.find(options[:selector]).html = html
         content_for_htmls.each do |selector, html|
+          puts "invoke_controller: content_for(#{selector}), html = #{html}"
           Document.find(selector).html = html
         end
       end
@@ -773,10 +778,11 @@ class Application
   def go_to_route(url, options={})
     puts "go_to_route: url = #{url}"
     @current_route_action, @params = self.class.routes.match_url(url)
+    puts "before push_state"
+    History.push_state({}, 'new route', url)
     puts "go_to_route: action = #{@current_route_action.name}, params = #{@params}"
     @current_route_action.invoke_controller(@current_route_action, @params, options)
     puts "go_to_route: after invoke_controller"
-    History.push_state({}, 'new route', url)
   end
 
   ROUTE_MAP = {
