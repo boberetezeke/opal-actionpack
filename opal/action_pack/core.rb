@@ -209,9 +209,21 @@ class ActionController
       self.class.helper_methods
     end
 
-    def render_template(content_fors={})
+    def session
+      @application.session
+    end
+
+    def render_template(options={})
+      content_fors = options.delete(:content_for) || {}
+      partial = options[:partial]
+
       renderer = ActionView::Renderer.new(self, path: render_path)
-      top_view_html = renderer.render_top_view
+      if partial
+        top_view_html = renderer.render(options)
+      else
+        top_view_html = renderer.render(file: render_path)
+      end
+
       content_for_htmls = {}
       content_fors.each do |key, selector|
         content_for_html = renderer.content_fors[key]
@@ -221,12 +233,13 @@ class ActionController
       [top_view_html, content_for_htmls]
     end
 
-    def session
-      @application.session
-    end
-
-    def render(name)
-      @render_path = "views" + "/" + view_path + "/" + name
+    def render(name_or_options)
+      if name_or_options.is_a?(Hash)
+        build_render_path("dummy")
+        render_template(name_or_options)
+      else
+        build_render_path(name_or_options)
+      end
     end
 
     def invoke_action(action)
@@ -235,12 +248,23 @@ class ActionController
       self.send(action.name)
     end
 
+    def build_render_path(name)
+      @render_path = "views" + "/" + view_path + "/" + name
+    end
+
     def view_path
       controller_parts = self.class.to_s.split(/::/)
       puts "controller_parts = #{controller_parts}"
-      controller_parts = controller_parts[0..-2].map{|part| part.underscore} + [controller_root_name(controller_parts[-1])]
+      if m = (/^(.*)ClientController$/.match(controller_parts[0]))
+        controller_parts = [m[1].underscore] 
+      else
+        controller_parts = controller_parts[0..-2].map{|part| part.underscore} + [controller_root_name(controller_parts[-1])]
+      end
+
       puts "controller_parts = #{controller_parts}"
-      controller_parts.join("/")
+      view_path = controller_parts.join("/")
+      puts "view_path = #{view_path}"
+      view_path
     end
 
     def controller_root_name(controller_name)
@@ -340,10 +364,6 @@ module ActionView
       @absolute_path = ""
     end
 
-    def render_top_view
-      render(file: @path)
-    end
-
     DEFAULT_RENDER_OPTIONS = {locals: {}}
     def render(options={}, &block)
       options = DEFAULT_RENDER_OPTIONS.merge(options)
@@ -412,7 +432,7 @@ module ActionView
 
     def helper_module_from_controller(controller)
       controller_class_name = controller.class.to_s
-      controller_name = /^(.*)Controller$/.match(controller_class_name)[1]
+      controller_name = /^(.*?)(Client)?Controller/.match(controller_class_name)[1]
       helper_module_name = "#{controller_name}Helper"
       Object.const_get(helper_module_name)
     end
@@ -619,7 +639,7 @@ class Application
         controller_class = Object.const_get(controller_class_name)
         controller = controller_class.new(params)
         controller.invoke_action(action)
-        html, content_for_htmls = controller.render_template(options[:content_for] || {})
+        html, content_for_htmls = controller.render_template(content_for: options[:content_for])
         puts "invoke_controller: html = #{html}"
         Document.find(options[:selector]).html = html
         content_for_htmls.each do |selector, html|
