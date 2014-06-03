@@ -103,7 +103,10 @@ class ActionSyncer
     when :insert
       puts "POSTING(#{root_url}): object=#{object.attributes}"
       HTTP.post(root_url, payload: payload, headers: headers) do |response| 
-        handle_response(response)
+        puts "POST RESPONSE: #{response.body}"
+        if handle_response(response)
+          object.update_id(response.json[object_key]['id'])
+        end
       end
     when :update
       puts "PUT(#{root_url_with_id}): object=#{object.attributes}"
@@ -125,6 +128,7 @@ class ActionSyncer
       @object_queue.shift
       puts "OK: after remove head, process queue: #{@object_queue.size}"
       process_queue if @object_queue.size > 0
+      return true
     else
       puts "ERROR: response #{response}"
       object_to_update = @object_queue.first
@@ -139,6 +143,7 @@ class ActionSyncer
           process_queue_entry(object_to_update)
         end
       end
+      return false
     end
   end
 
