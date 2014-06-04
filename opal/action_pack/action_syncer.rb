@@ -18,6 +18,8 @@ end
 
 
 class ActionSyncer
+  UPDATE_FREQUENCY = 1000
+
   class ObjectToUpdate
     attr_accessor :action, :object, :state, :retry_count
     def initialize(action, object, state)
@@ -25,6 +27,25 @@ class ActionSyncer
       @object = object
       @state = state
       @retry_count = 0
+    end
+  end
+
+  class ObjectsFromUpdates
+    attr_accessor :url, :frequency, :time_left
+    def initialize(url, frequency)
+      @url = url
+      @frequency = frequency
+      @time_left = frequency
+    end
+
+    def time_expired?(elapsed_time)
+      self.time_left -= elapsed_time
+      if self.time_left <= 0
+        self.time_left = self.frequency
+        return true
+      else
+        return false
+      end
     end
   end
 
@@ -52,7 +73,12 @@ class ActionSyncer
     options = INITIALIZE_DEFAULTS.merge(options)
     @application = application
     @object_queue = []
+    @update_queue = []
     @max_retries = options[:max_retries]
+
+    every UPDATE_FREQUENCY / 1000 do
+      process_updates
+    end
   end
 
   def on_change(action, object)
@@ -80,7 +106,43 @@ class ActionSyncer
     process_queue
   end
 
+  #
+  # do a HTTP GET operation from the supplied path every frequency milliseconds
+  # 
+  # when the get succeeds, save the objects locally
+  #
+  def update_every(url, frequency)
+    updater = ObjectsFromUpdates.new(url, frequency)
+    @update_queue.push(updater)
+    updater
+  end
+
+  def stop_updating(updater)
+    @update_queue.delete(updater)
+  end
+
   private
+
+  def process_updates
+    puts "in process_updates"
+    capture_exception do
+      @update_queue.each do |updater|
+        if updater.time_expired?(UPDATE_FREQUENCY)
+          headers = {"Accept" => 'application/json', "content-Type" => 'application/json'}
+
+          puts "GET(#{updater.url})"
+          HTTP.get(updater.url, headers: headers) do |response| 
+            if response.status_code.to_i == 200
+              puts "response.json = #{response.json}"
+              response.json.each do |object_json|
+                @application.create_or_update_object_from_object_key_and_attributes(object_json.keys.first, object_json.values.first)
+              end 
+            end
+          end
+        end
+      end
+    end
+  end
 
   def process_queue
     puts "Updater#process_queue: #{@object_queue.size}"

@@ -786,9 +786,8 @@ class Application
       #puts "initial_hash = #{initial_hash}"
       #puts "initial_search = #{initial_search}"
       #puts "initial_url = #{initial_url}"
-      @objects = ActiveRecord::Base.new_objects_from_json(initial_objects_json)
-      #puts "object from json = #{@objects}"
-      @objects.each { |object| object.save }
+      @objects = ActiveRecord::Base.new_objects_from_json(initial_objects_json, nil, from_remote: true)
+      @objects.each { |object| object.save(from_remote: true) }
       @session = JSON.parse(session)
       go_to_route(initial_url, render_view: false)
     end
