@@ -305,14 +305,35 @@ class ActionController
       @application.go_to_route(*(new_args + [options]), &block)
     end
 
-    def bind_event(selector, event)
+    #
+    # bind to a DOM event
+    #
+    # This binds to a DOM event. It automatically unbinds on go_to_route.
+    #
+    # Example:
+    #
+    #   bind_event("#button", :click) do
+    #     do_something
+    #   end
+    #
+    # options:
+    #   returns_propagation_result - if true, the result of the block determines
+    #     if the event should propagate or not
+    #
+    def bind_event(selector, event, options={})
       @bound_events[selector] = BoundEvent.new(event, selector)
       Element.find(selector).on(event) do
         puts "#{selector}: #{event}"
+        propagate = false
         capture_exception do
-          yield
+          if options[:returns_propagation_result]
+            propagate = yield
+          else
+            yield
+          end
         end
-        false
+        puts "propagate = #{propagate}"
+        propagate
       end
     end
     
@@ -787,6 +808,7 @@ class Application
       #puts "initial_search = #{initial_search}"
       #puts "initial_url = #{initial_url}"
       @objects = ActiveRecord::Base.new_objects_from_json(initial_objects_json, nil, from_remote: true)
+      puts "objects = #{@objects}"
       @objects.each { |object| object.save(from_remote: true) }
       @session = JSON.parse(session)
       go_to_route(initial_url, render_view: false)
