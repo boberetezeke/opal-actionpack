@@ -323,7 +323,7 @@ class ActionController
     def bind_event(selector, event, options={})
       @bound_events[selector] = BoundEvent.new(event, selector)
       Element.find(selector).on(event) do
-        puts "#{selector}: #{event}"
+        puts "bind_event: #{selector}: #{event}"
         propagate = false
         capture_exception do
           if options[:returns_propagation_result]
@@ -332,7 +332,7 @@ class ActionController
             yield
           end
         end
-        puts "propagate = #{propagate}"
+        puts "bind_event: propagate = #{propagate}"
         propagate
       end
     end

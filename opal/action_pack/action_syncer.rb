@@ -73,6 +73,9 @@ class ActionSyncer
   #
   # NOTE: on delete, what about references to objects?
   # NOTE: how to do cascading delete
+
+  attr_reader :object_queue
+
   INITIALIZE_DEFAULTS = {max_retries: 5}
   def initialize(application, options={})
     options = INITIALIZE_DEFAULTS.merge(options)
@@ -142,17 +145,27 @@ class ActionSyncer
     capture_exception do
       @update_queue.each do |updater|
         if updater.time_expired?(UPDATE_FREQUENCY)
-          headers = {"Accept" => 'application/json', "content-Type" => 'application/json'}
+          begin
+            headers = {"Accept" => 'application/json', "content-Type" => 'application/json'}
 
-          puts "GET(#{updater.url})"
-          HTTP.get(updater.url, headers: headers) do |response| 
-            if response.status_code.to_i == 200
-              @application.update_every_succeeded
-              puts "response.json = #{response.json}"
-              response.json.each do |object_json|
-                @application.create_or_update_object_from_object_key_and_attributes(object_json.keys.first, object_json.values.first)
-              end 
+            puts "GET(#{updater.url})"
+            HTTP.get(updater.url, headers: headers) do |response| 
+              if response.status_code.to_i == 200
+                @application.update_every_succeeded
+                puts "response.json = #{response.json}"
+                response.json.each do |object_json|
+                  @application.create_or_update_object_from_object_key_and_attributes(object_json.keys.first, object_json.values.first)
+                end 
+              else
+                puts "ERROR: status code: #{response.status_code}"
+                @application.update_every_failed
+              end
             end
+            puts "GET done"
+          rescue Exception => e
+            puts "Exception: #{e}"
+            @application.update_every_failed
+            raise e
           end
         end
       end
