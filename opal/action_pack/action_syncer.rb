@@ -28,6 +28,11 @@ class ActionSyncer
       @state = state
       @retry_count = 0
     end
+
+    def reset
+      @retry_count = 0
+      @state = :idle
+    end
   end
 
   class ObjectsFromUpdates
@@ -106,6 +111,15 @@ class ActionSyncer
     process_queue
   end
 
+  def retry_on_change
+    object_to_update = @object_queue.first
+    if object_to_update
+      object_to_update.reset
+
+      process_queue
+    end
+  end
+
   #
   # do a HTTP GET operation from the supplied path every frequency milliseconds
   # 
@@ -133,6 +147,7 @@ class ActionSyncer
           puts "GET(#{updater.url})"
           HTTP.get(updater.url, headers: headers) do |response| 
             if response.status_code.to_i == 200
+              @application.update_every_succeeded
               puts "response.json = #{response.json}"
               response.json.each do |object_json|
                 @application.create_or_update_object_from_object_key_and_attributes(object_json.keys.first, object_json.values.first)
