@@ -1,0 +1,66 @@
+
+class Template
+  def self.current_output_buffer
+    #puts "in self.current_output_buffer: (#{@output_buffer_stack.size})"
+    @output_buffer
+  end
+
+  def self.current_output_buffer=(output_buffer)
+    @output_buffer_stack ||= []
+    @output_buffer_stack.push(@output_buffer) 
+    @output_buffer = output_buffer
+  end
+
+  def self.output_buffer_stack
+    @output_buffer_stack ||= []
+  end
+
+  def self.pop_output_buffer
+    @output_buffer = @output_buffer_stack.pop
+  end
+
+  def render(ctx = self)
+    self.class.current_output_buffer = OutputBuffer.new(self.class.output_buffer_stack.size)
+    result = ctx.instance_exec(self.class.current_output_buffer, &@body)
+    self.class.pop_output_buffer
+    result
+  end
+
+  class OutputBuffer
+    def initialize(id)
+      @id = id
+      @buffer_id = 0
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): initialize: #{@buffer.inspect}"
+      @buffer_stack = []
+      @buffer = []
+    end
+
+    def push_buffer
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): pushing buffer: #{@buffer.inspect}"
+      @buffer_id += 1
+      @buffer_stack.push(@buffer)
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): pushing to buffer stack: #{@buffer_stack.inspect}"
+      @buffer = []
+    end
+
+    def pop_buffer
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): popping buffer: #{@buffer.inspect}"
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): popping buffer stack: #{@buffer_stack.inspect}"
+      @buffer_id -= 1
+      @buffer = @buffer_stack.pop
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): after popping buffer: #{@buffer.inspect}"
+    end
+
+    def append(str)
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): append: #{str.inspect}"
+      @buffer << str
+    end
+
+    alias append= append
+
+    def join
+      #puts "OutputBuffer(#{@id}, #{@buffer_id}): join: #{@buffer.join.inspect}"
+      @buffer.join
+    end
+  end
+end
