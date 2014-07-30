@@ -290,6 +290,8 @@ There are four methods available to be called from a client controller.
 
 #### session
 
+*signature*: session
+
 When the application is launched the second argument to it is an optional hash which is used to initialize the session hash.
 
 ```js
@@ -311,9 +313,9 @@ You can of course also insert and delete from the session hash like any other ha
 
 #### render
 
-signature: render(options)
+*signature*: render(options)
 
-arguments
+*arguments*:
 
 * options - a hash specifying rendering options
 ** partial - specify name of partial to render
@@ -321,9 +323,9 @@ arguments
 
 #### go\_to\_route
 
-signature: go_to_route(route, options)
+*signature*: go_to_route(route, options)
 
-arguments:
+*arguments*:
 
 * options - hash of options
 ** selector - selector that indicates where to insert rendered HTML
@@ -332,9 +334,9 @@ arguments:
 
 #### bind\_event
 
-signature: bind_event(selector, event_type) { |event }
+*signature*: bind_event(selector, event_type) { |event| }
 
-arguments:
+*arguments*:
 
 * selector - selector for DOM element(s) to bind to
 * event_type - type of event to bind  (e.g. :click or :mousedown)
