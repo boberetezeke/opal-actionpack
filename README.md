@@ -165,15 +165,15 @@ end
 
 ### From Start to Finish of Page Load
 
-* look up the correct controller and action (WidgetsController#show) based on the url and the routes file
-* create an WidgetController instance
-* call its method of the same name 
-* invoke the view (generally of the same name) - widgets/show.html.erb
-* inside the view the instance variables set in the constructor are available within the view.
-* the rendered view is sent back to the client with the HTTP headers appropriately set
-* the javascript on the page launches the application with the json necessary for the application
-* once the WidgetApplication is started the client side controller is created (e.g. WidgetClientController::Index)
-* add_bindings is then called on that client controller to capture any client side events that it would like to capture. In this example the link to show the widget is captured
+- look up the correct controller and action (WidgetsController#show) based on the url and the routes file
+- create an WidgetController instance
+- call its method of the same name 
+- invoke the view (generally of the same name) - widgets/show.html.erb
+- inside the view the instance variables set in the constructor are available within the view.
+- the rendered view is sent back to the client with the HTTP headers appropriately set
+- the javascript on the page launches the application with the json necessary for the application
+- once the WidgetApplication is started the client side controller is created (e.g. WidgetClientController::Index)
+- add_bindings is then called on that client controller to capture any client side events that it would like to capture. In this example the link to show the widget is captured
 so that the widget show page can be rendered and displayed without hitting the server.
 
 Once the page load is done, we want to be able to either do things on the current
@@ -283,10 +283,10 @@ end
 
 There are four methods available to be called from a client controller.
 
-* session - this returns the session hash that was passed in when the application object was created. It acts like the session hash in rails and can be used to implement things like current_user.
-* render - this method allow a partial view to be rendered with passed in locals
-* go\_to\_route - this is intended to change from one "page" to another, where the route is a rails route. It will invoke a server side controller first and use it to render the view for that route, then invoke the client controller and in the end insert the generated view into a DOM node.
-* bind\_event - bind an event to a DOM element. This simply calls Element.find(selector).first.on and saves the bound elements so they can be automatically unbound on go\_to\_route.
+- session - this returns the session hash that was passed in when the application object was created. It acts like the session hash in rails and can be used to implement things like current_user.
+- render - this method allow a partial view to be rendered with passed in locals
+- go\_to\_route - this is intended to change from one "page" to another, where the route is a rails route. It will invoke a server side controller first and use it to render the view for that route, then invoke the client controller and in the end insert the generated view into a DOM node.
+- bind\_event - bind an event to a DOM element. This simply calls Element.find(selector).first.on and saves the bound elements so they can be automatically unbound on go\_to\_route.
 
 #### session
 
@@ -317,9 +317,9 @@ You can of course also insert and delete from the session hash like any other ha
 
 *arguments*:
 
-* options - a hash specifying rendering options
-** partial - specify name of partial to render
-** locals - supply hash to be used to resolve references during rendering
+- options - a hash specifying rendering options
+ - partial - specify name of partial to render
+ - locals - supply hash to be used to resolve references during rendering
 
 #### go\_to\_route
 
@@ -327,10 +327,10 @@ You can of course also insert and delete from the session hash like any other ha
 
 *arguments*:
 
-* options - hash of options
-** selector - selector that indicates where to insert rendered HTML
-** render_view(optional, default: true) - if true, the view is rendered. False value is used when for initial page load as view is already rendered by server.
-** manual_unbind(optional, default: false) - if true, then unbinding DOM handlers is up to caller
+- options - hash of options
+ - selector - selector that indicates where to insert rendered HTML
+ - render_view(optional, default: true) - if true, the view is rendered. False value is used when for initial page load as view is already rendered by server.
+ - manual_unbind(optional, default: false) - if true, then unbinding DOM handlers is up to caller
 
 #### bind\_event
 
@@ -338,8 +338,8 @@ You can of course also insert and delete from the session hash like any other ha
 
 *arguments*:
 
-* selector - selector for DOM element(s) to bind to
-* event_type - type of event to bind  (e.g. :click or :mousedown)
+- selector - selector for DOM element(s) to bind to
+- event_type - type of event to bind  (e.g. :click or :mousedown)
 
 ## Testing
 
