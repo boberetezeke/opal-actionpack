@@ -50,8 +50,8 @@ describe Application do
   describe "#launch" do
     before do
       Application.routes.draw do |router|
-        router.resources :calculators
-        router.resources :results
+        resources :calculators
+        resources :results
       end
        allow(object1).to receive(:save).and_return(nil)
     end
@@ -73,32 +73,32 @@ describe Application do
       let(:route) { double('route') }
 
       it "matches if a show path with 1 arg" do
-        action = Application::Action.new(route, :member, 'show', {id: '.*'})
+        action = Application::Action.new(route, :member, name: 'show', parts: {id: '.*'})
         expect(action.match_path(:show, '1')).to eq(["1", {}])
       end
 
       it "matches if a show path with 1 arg and params" do
-        action = Application::Action.new(route, :member, 'show', {id: '.*'})
+        action = Application::Action.new(route, :member, name: 'show', parts: {id: '.*'})
         expect(action.match_path(:show, '1', extra: 1)).to eq(["1", {extra: 1}])
       end
 
       it "matches if a non-show member path with 1 arg" do
-        action = Application::Action.new(route, :member, 'edit', {id: '.*'})
+        action = Application::Action.new(route, :member, name: 'edit', parts: {id: '.*'})
         expect(action.match_path(:edit, '1')).to eq(["1/edit", {}])
       end
 
       it "matches if a index path with 0 args" do
-        action = Application::Action.new(route, :collection, 'index', {id: '.*'})
+        action = Application::Action.new(route, :collection, name: 'index', parts: {id: '.*'})
         expect(action.match_path(:index)).to eq(["", {}])
       end
 
       it "matches if a index path with params as args" do
-        action = Application::Action.new(route, :collection, 'index', {id: '.*'})
+        action = Application::Action.new(route, :collection, name: 'index', parts: {id: '.*'})
         expect(action.match_path(:index, extra: 1)).to eq(["", {extra: 1}])
       end
 
       it "matches if a non-index collection path with 0 args" do
-        action = Application::Action.new(route, :collection, 'new', {id: '.*'})
+        action = Application::Action.new(route, :collection, name: 'new', parts: {id: '.*'})
         expect(action.match_path(:new)).to eq(["new", {}])
       end
 
@@ -157,8 +157,8 @@ describe Application do
   describe Application::Router do
     before do
       Application.routes.draw do |router|
-        router.resources :calculators
-        router.resources :results
+        resources :calculators
+        resources :results
       end
     end
 
@@ -190,8 +190,8 @@ end
 describe ActionView do
   before do
     Application.routes.draw do |router|
-      router.resources :calculators
-      router.resources :results
+      resources :calculators
+      resources :results
     end
   end
 
@@ -289,8 +289,8 @@ end
 describe ActionController::Base do
   before do
     Application.routes.draw do |router|
-      router.resources :calculators
-      router.resources :results
+      resources :calculators
+      resources :results
     end
   end
 

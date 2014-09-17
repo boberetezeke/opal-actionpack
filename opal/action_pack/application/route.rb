@@ -5,14 +5,53 @@ class Application
 
     attr_reader :name
 
-    def initialize(name, options)
+    def initialize(name, options, &block)
       @name = name.to_s
-      @actions = [
-        Action.new(self, :collection, :new,   ['new']),
-        Action.new(self, :member,     :edit,  [{id: '.*'}, 'edit']),
-        Action.new(self, :member,     :show,  [{id: '.*'}]),
-        Action.new(self, :collection, :index, [])
+      all_actions = [
+        Action.new(self, :collection, name: :new,   parts: ['new']),
+        Action.new(self, :member,     name: :edit,  parts: [{id: '.*'}, 'edit']),
+        Action.new(self, :member,     name: :show,  parts: [{id: '.*'}]),
+        Action.new(self, :collection, name: :index, parts: [])
       ]
+      if options[:only]
+        onlys = options[:only].is_a?(Array) ? options[:only] : [options[:only]]
+        @actions = all_actions.select{|action| onlys.include?(action.name)}
+      elsif options[:except]
+        exceptions = options[:except].is_a?(Array) ? options[:except] : [options[:except]]
+        @actions = all_actions.reject{|action| exceptions.include?(action.name)}
+      elsif options[:redirect_action]
+        @redirect_action =  Action.new(self, :redirect, redirect_action: options[:redirect_action])
+      else
+        @actions = all_actions
+      end
+
+      instance_exec(&block) if block
+    end
+
+    def member(&block)
+      @action_type = :member
+      instance_exec(&block)
+    end
+
+    def collection(&block)
+      @action_type = :collection
+      instance_exec(&block)
+    end
+
+    def get(name)
+      @actions << Action.new(self, @action_type, name: name, method: :get)
+    end
+
+    def post(name)
+      @actions << Action.new(self, @action_type, name: name, method: :post)
+    end
+
+    def put(name)
+      @actions << Action.new(self, @action_type, name: name, method: :put)
+    end
+
+    def delete(name)
+      @actions << Action.new(self, @action_type, name: name, method: :delete)
     end
 
     def match(parts, params)

@@ -4,23 +4,35 @@ class Application
       @routes = []
     end
 
-    def draw
-      yield self
+    def draw(&block)
+      instance_exec(&block)
     end
 
-    def resources(route, options={})
-      @routes.push(Route.new(route, options))
+    def resource(route, options={}, &block)
+      # FIXME: should be default to singular
+      @routes.push(Route.new(route, options, &block))
+    end
+
+    def resources(route, options={}, &block)
+      @routes.push(Route.new(route, options, &block))
+    end
+
+    def root(options={})
+      to = options[:to]
+      controller_name, action_name = to.split(/#/)
+      action = find_action(controller_name, [action_name])
+      @root_route = Route.new(controller, redirect_action: action)
     end
 
     def match_url(url)
       parts, params = to_parts(url)
 
-      @routes.each do |route|
-        puts "Router#match_url: matching parts=#{parts.inspect}, route=#{route.inspect}"
-        if action = route.match(parts, params)
-          return [action, params] 
-        end
+      if parts == []
+        return @root_route
       end
+
+      action = find_action(parts, params)
+      return [action, params] if action
 
       raise "no route matches #{url}"
     end
@@ -34,6 +46,8 @@ class Application
 
       raise "no route matches path #{resource_name}::#{action_name}"
     end
+
+    private
 
     def to_parts(url)
       # remove leading '/'
@@ -56,5 +70,16 @@ class Application
 
       [url.split(/\//), params]
     end
+  end
+
+  def find_action(parts, params)
+    @routes.each do |route|
+      puts "Router#match_url: matching parts=#{parts.inspect}, route=#{route.inspect}"
+      if action = route.match(parts, params)
+        return action
+      end
+    end
+
+    return nil
   end
 end
