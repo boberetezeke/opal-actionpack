@@ -83,7 +83,7 @@ class Application
 
     def invoke_controller(params, options)
       if @redirect_action
-        return @redirect_action.invoke_controller(action, params, options)
+        return @redirect_action.invoke_controller(params, options)
       end
 
       if options[:render_view]

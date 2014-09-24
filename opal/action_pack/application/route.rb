@@ -3,7 +3,7 @@ class Application
     ALL_COLLECTION_ACTIONS = [:index]
     ALL_RESOURCE_ACTIONS = [:show, :new, :create, :edit, :update, :destroy]
 
-    attr_reader :name
+    attr_reader :name, :redirect_action
 
     def initialize(name, options, &block)
       @name = name.to_s

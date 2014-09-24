@@ -23,6 +23,10 @@ class Application
     true
   end
 
+  def routes
+    self.class.routes
+  end
+
   def get_store
     ActiveRecord::MemoryStore.new
   end

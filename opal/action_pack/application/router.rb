@@ -18,17 +18,19 @@ class Application
     end
 
     def root(options={})
+      #puts "Router#root: options: #{options}"
       to = options[:to]
       controller_name, action_name = to.split(/#/)
-      action = find_action(controller_name, [action_name])
-      @root_route = Route.new(controller, redirect_action: action)
+      action = find_action([controller_name, action_name], {})
+      @root_route = Route.new(controller_name, redirect_action: action)
     end
 
     def match_url(url)
+      #puts "Router#match_url(#{url})"
       parts, params = to_parts(url)
 
       if parts == []
-        return @root_route
+        return [@root_route.redirect_action, params]
       end
 
       action = find_action(parts, params)
@@ -68,18 +70,25 @@ class Application
         params = {}
       end
 
-      [url.split(/\//), params]
-    end
-  end
-
-  def find_action(parts, params)
-    @routes.each do |route|
-      puts "Router#match_url: matching parts=#{parts.inspect}, route=#{route.inspect}"
-      if action = route.match(parts, params)
-        return action
+      # FIXME: opal does split diff than MRI
+      if url == ""
+        parts = []
+      else
+        parts =  url.split(/\//)
       end
+      [parts, params]
     end
 
-    return nil
+    def find_action(parts, params)
+      #puts "Router#find_action: #{parts}, #{params}"
+      @routes.each do |route|
+        #puts "Router#find_action: matching parts=#{parts.inspect}, route=#{route.name}"
+        if action = route.match(parts, params)
+          return action
+        end
+      end
+
+      return nil
+    end
   end
 end
