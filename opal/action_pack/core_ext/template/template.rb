@@ -33,6 +33,7 @@ class Template
       #puts "OutputBuffer(#{@id}, #{@buffer_id}): initialize: #{@buffer.inspect}"
       @buffer_stack = []
       @buffer = []
+      @attributes={}
     end
 
     def push_buffer
@@ -54,6 +55,13 @@ class Template
     def append(str)
       #puts "OutputBuffer(#{@id}, #{@buffer_id}): append: #{str.inspect}"
       @buffer << str
+    end
+
+    def attributes(*args)
+      #puts "**** getting attributes: #{@attributes}, args= #{args}"
+      # for some reason haml sometimes passes in the attributes it wants set on a tag as 
+      # individual hashes one for each attribute and some arguments nil
+      " " + args.reject{|a| a.nil?}.map{|a| "#{a.keys.first}=\"#{a.values.first}\"" }.join(" ")
     end
 
     alias append= append
