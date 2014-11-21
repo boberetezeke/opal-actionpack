@@ -15,6 +15,18 @@ class Application
     ActiveRecord::Base.connection = @store
   end
 
+  def is_server?
+    false
+  end
+
+  def is_client?
+    true
+  end
+
+  def routes
+    self.class.routes
+  end
+
   def get_store
     ActiveRecord::MemoryStore.new
   end
@@ -79,14 +91,14 @@ class Application
     #puts "before push_state"
     History.push_state({}, 'new route', url)
     #puts "go_to_route: action = #{@current_route_action.name}, params = #{@params}"
-    @current_route_action.invoke_controller(@current_route_action, @params, options)
+    @current_route_action.invoke_controller(@params, options)
     #puts "go_to_route: after invoke_controller"
   end
 
   def render_route(url, options={})
     route_action, params = self.class.routes.match_url(url)
 
-    route_action.invoke_controller(route_action, params, {render_only: true}.merge(options))
+    route_action.invoke_controller(params, {render_only: true}.merge(options))
   end
 
   ROUTE_MAP = {

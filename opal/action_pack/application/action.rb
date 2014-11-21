@@ -1,11 +1,15 @@
 class Application
   class Action
     attr_reader :name
-    def initialize(route, action_type, name, parts)
+    def initialize(route, action_type, options)
       @route = route
       @action_type = action_type
-      @name = name
-      @parts = parts
+      if action_type == :redirect
+        @redirect_action = options[:redirect_action]
+      else
+        @name = options[:name]
+        @parts = options[:parts]
+      end
     end
 
     def match(parts, params)
@@ -77,12 +81,16 @@ class Application
       end
     end
 
-    def invoke_controller(action, params, options)
+    def invoke_controller(params, options)
+      if @redirect_action
+        return @redirect_action.invoke_controller(params, options)
+      end
+
       if options[:render_view]
         controller_class_name = "#{@route.name.camelize}Controller"
         controller_class = Object.const_get(controller_class_name)
         controller = controller_class.new(params)
-        controller.invoke_action(action)
+        controller.invoke_action(self)
         html, content_for_htmls = controller.render_template(content_for: options[:content_for])
         #puts "invoke_controller: html = #{html}"
         Document.find(options[:selector]).html = html
@@ -105,7 +113,7 @@ class Application
       return unless controller_client_class
 
       begin
-        controller_action_class = controller_client_class.const_get(action.name.capitalize)
+        controller_action_class = controller_client_class.const_get(@name.capitalize)
       rescue Exception => e
         #puts "INFO: client action class: #{controller_client_class_name}::#{action.name.capitalize} doesn't exist, #{e}"
       end
