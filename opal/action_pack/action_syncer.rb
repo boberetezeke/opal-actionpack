@@ -148,11 +148,14 @@ class ActionSyncer
           begin
             headers = {"Accept" => 'application/json', "content-Type" => 'application/json'}
 
-            puts "GET(#{updater.url})"
+            # puts "GET(#{updater.url})"
+            #`var d = new Date(); console.log("time= " + d.getSeconds() + ":" + d.getMilliseconds());`
             HTTP.get(updater.url, headers: headers) do |response| 
+              #puts "GET(#{updater.url}) got response"
+              #`var d = new Date(); console.log("time= " + d.getSeconds() + ":" + d.getMilliseconds());`
               if response.status_code.to_i == 200
                 @application.update_every_succeeded
-                puts "response.json = #{response.json}"
+                #puts "response.json = #{response.json}"
                 response.json.each do |object_json|
                   @application.create_or_update_object_from_object_key_and_attributes(object_json.keys.first, object_json.values.first)
                 end 
@@ -160,8 +163,10 @@ class ActionSyncer
                 puts "ERROR: status code: #{response.status_code}"
                 @application.update_every_failed
               end
+              # puts "GET(#{updater.url}) processed response"
+              #`var d = new Date(); console.log("time= " + d.getSeconds() + ":" + d.getMilliseconds());`
             end
-            puts "GET done"
+            #puts "GET done"
           rescue Exception => e
             puts "Exception: #{e}"
             @application.update_every_failed
@@ -173,7 +178,7 @@ class ActionSyncer
   end
 
   def process_queue
-    puts "Updater#process_queue: #{@object_queue.size}"
+    # puts "Updater#process_queue: #{@object_queue.size}"
     return if @object_queue.empty? || @object_queue.first.state != :idle
 
     process_queue_entry(@object_queue.first)
@@ -193,7 +198,7 @@ class ActionSyncer
     when :insert
       puts "POSTING(#{root_url}): object=#{object.attributes}"
       HTTP.post(root_url, payload: payload, headers: headers) do |response| 
-        puts "POST RESPONSE: #{response.body}"
+        puts "POST RESPONSE(#{root_url}): #{response.body}"
         if handle_response(response)
           object.update_id(response.json[object_key]['id'])
         end
