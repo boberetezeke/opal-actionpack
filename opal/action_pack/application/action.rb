@@ -74,6 +74,7 @@ class Application
           else
             action_root = @name
           end
+          #puts "action_root = #{action_root}, params=#{params}"
           return [action_root, params]
         else
           raise "argument passed to collection path"
@@ -81,16 +82,36 @@ class Application
       end
     end
 
+    # 
+    # Invoke a controller which will optionally render the associated view
+    #
+    # params - url params hash
+    # options -
+    #   :render_view - true if the view is being rendered
+    #   :render_only - only render but don't call add_bindings on client controller
+    #   :selector - the jquery selector to select the DOM element to render into
+    #   :content_for - a hash with keys as the symbol for the content to be rendered (e.g. :footer) 
+    #                  and the values as the selector of the DOM element to render into
+    #
     def invoke_controller(params, options)
       if @redirect_action
         return @redirect_action.invoke_controller(params, options)
       end
 
-      if options[:render_view]
-        controller_class_name = "#{@route.name.camelize}Controller"
+      controller_class_name = "#{@route.name.camelize}Controller"
+      controller_class = nil
+      begin
         controller_class = Object.const_get(controller_class_name)
-        controller = controller_class.new(params)
-        controller.invoke_action(self)
+      rescue Exception => e
+        puts "INFO: client class: #{controller_class_name} doesn't exist"
+      end
+
+      return unless controller_class
+
+      controller = controller_class.new(params)
+      controller.invoke_action(self)
+
+      if options[:render_view]
         html, content_for_htmls = controller.render_template(content_for: options[:content_for])
         #puts "invoke_controller: html = #{html}"
         Document.find(options[:selector]).html = html
@@ -107,7 +128,7 @@ class Application
       begin
         controller_client_class = Object.const_get(controller_client_class_name)
       rescue Exception => e
-        #puts "INFO: client class: #{controller_client_class_name} doesn't exist"
+        puts "INFO: client class: #{controller_client_class_name} doesn't exist"
       end
 
       return unless controller_client_class
@@ -115,13 +136,22 @@ class Application
       begin
         controller_action_class = controller_client_class.const_get(@name.capitalize)
       rescue Exception => e
-        #puts "INFO: client action class: #{controller_client_class_name}::#{action.name.capitalize} doesn't exist, #{e}"
+        puts "INFO: client action class: #{controller_client_class_name}::#{action.name.capitalize} doesn't exist, #{e}"
       end
 
       return unless controller_action_class
 
-      controller_action = controller_action_class.new(params)
+      controller_action = controller_action_class.allocate
+      copy_instance_variables(controller, controller_action)
+      controller_action.initialize(params)
       controller_action.add_bindings unless options[:render_only]
+    end
+
+    # FIXME: similar method in action_view.rb
+    def copy_instance_variables(object_from, object_to)
+      object_from.instance_variables.each do |ivar|
+        object_to.instance_variable_set(ivar, object_from.instance_variable_get(ivar))
+      end
     end
   end
 end
