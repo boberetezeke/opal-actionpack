@@ -69,9 +69,19 @@ class Application
       @actions.each do |action|
         action_path, params = action.match_path(action_name, *args)
         # FIXME: need to url encode parameters
+        # FIXME: Need to handle nested hashes like 
+        #          {table: {order: 'x', position: 'y'}} 
+        #        should be
+        #          table[order]=x&table[position]=y
+        #
+        #        {table: {sub_table1: {order: 'x', position: 'y'}}
+        #          should be
+        #        table[sub_table1][order]=x&table[sub_table1][position]=y
+        #
         params_string = params.map{|key, value| "#{key}=#{value}"}.join("&")
 
         #puts "action_path = #{action_path}"
+        #puts "params_string = #{params_string}"
         if action_path
           if action_path == ""
             url =  "/#{resource_name}"
