@@ -34,10 +34,18 @@ class ActionController
       @application.session
     end
 
+    #
+    # render a template 
+    #
+    # options: 
+    #   :content_for - a hash with keys as the symbol for the content to be rendered (e.g. :footer) 
+    #                  and the values as the selector of the DOM element to render into
+    #   :partial - true if rendering a partial
+    #
     def render_template(options={})
       puts "render_template(start)"
       `var d = new Date(); console.log("time= " + d.getSeconds() + ":" + d.getMilliseconds());`
-      Timer.time_stamp("render_template (begin)")
+      #Timer.time_stamp("render_template (begin)")
       content_fors = options.delete(:content_for) || {}
       partial = options[:partial]
 
