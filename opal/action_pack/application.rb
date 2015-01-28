@@ -6,11 +6,14 @@ class Application
   def self.instance
     return @@application if defined?(@@application)
     @@application = new
+    #puts "@@application = #{@@application}"
+    @@application
   end
 
   attr_reader :session
 
   def initialize
+    #puts "in initialize of class #{self.class.to_s}"
     @store = get_store
     ActiveRecord::Base.connection = @store
   end
@@ -44,7 +47,7 @@ class Application
       #puts "initial_search = #{initial_search}"
       #puts "initial_url = #{initial_url}"
       @objects = ActiveRecord::Base.new_objects_from_json(initial_objects_json, nil, from_remote: true)
-      puts "objects = #{@objects}"
+      #puts "objects = #{@objects}"
       @objects.each { |object| object.save(from_remote: true) }
       @session = JSON.parse(session)
       go_to_route(initial_url, render_view: false)
@@ -85,6 +88,21 @@ class Application
     self.class.routes.match_path(resource, action, *args)
   end
 
+  # 
+  # Goes to the route specified as passes options on to invoke_controller
+  #
+  # This uses the history API to push this route on the browser's history stack.
+  # Then it invokes the server side controller, optionally render's the view and then
+  # invokes the client side controller if it exists.
+  #
+  # url - url to go to with optional params in uri format
+  # options -
+  #   :render_view - true if the view is being rendered
+  #   :render_only - only render but don't call add_bindings on client controller
+  #   :selector - the jquery selector to select the DOM element to render into
+  #   :content_for - a hash with keys as the symbol for the content to be rendered (e.g. :footer) 
+  #                  and the values as the selector of the DOM element to render into
+  #
   def go_to_route(url, options={})
     #puts "go_to_route: url = #{url}"
     @current_route_action, @params = self.class.routes.match_url(url)
