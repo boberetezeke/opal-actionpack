@@ -145,7 +145,10 @@ module ActionView
     end
 
     def link_to(text, path, options={})
+      puts "path = #{path}, options=#{options}"
       "<a href=\"#{path}\"" + options.map{|k,v| "#{k}=\"#{v}\""}.join(' ') + ">#{text}</a>"
+      #"<a href=\"#{path}\">#{text}</a>"
+      #"<a href=\"#\">#{text}</a>"
     end
 
     DEFAULT_POLYMORPHIC_PATH_OPTIONS = {format: :post}
