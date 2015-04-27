@@ -110,6 +110,7 @@ class ActionController
         new_args = args[0..-2]
         options = args.last
       else
+        new_args = args
         options = {}
       end
 
