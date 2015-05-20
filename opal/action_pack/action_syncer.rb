@@ -36,11 +36,12 @@ class ActionSyncer
   end
 
   class ObjectsFromUpdates
-    attr_accessor :url, :frequency, :time_left
-    def initialize(url, frequency)
+    attr_accessor :frequency, :time_left
+    def initialize(url, frequency, url_block)
       @url = url
       @frequency = frequency
       @time_left = frequency
+      @url_block = url_block
     end
 
     def time_expired?(elapsed_time)
@@ -50,6 +51,14 @@ class ActionSyncer
         return true
       else
         return false
+      end
+    end
+
+    def url
+      if @url_block
+        @url_block.call
+      else
+        @url
       end
     end
   end
@@ -128,8 +137,17 @@ class ActionSyncer
   # 
   # when the get succeeds, save the objects locally
   #
-  def update_every(url, frequency)
-    updater = ObjectsFromUpdates.new(url, frequency)
+  def update_every(*args, &block)
+    if args.size == 1
+      frequency = args.first
+      raise ArgumentError.new("block expected") unless block
+    elsif args.size == 2
+      url, frequence = args
+    else
+      raise ArgumentError.new("expecting either a frequency and block or a url and a frequency")
+    end
+
+    updater = ObjectsFromUpdates.new(url, frequency, block)
     @update_queue.push(updater)
     updater
   end
@@ -163,6 +181,7 @@ class ActionSyncer
                 puts "ERROR: status code: #{response.status_code}"
                 @application.update_every_failed
               end
+
               # puts "GET(#{updater.url}) processed response"
               #`var d = new Date(); console.log("time= " + d.getSeconds() + ":" + d.getMilliseconds());`
             end
