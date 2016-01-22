@@ -78,12 +78,12 @@ class ActionController
 
     def invoke_action(action)
       # set up default render path
-      @render_path = "views" + "/" + view_path + "/" + action.name
+      @render_path = @application.view_root + "/" + view_path + "/" + action.name
       self.send(action.name)
     end
 
     def build_render_path(name)
-      @render_path = "views" + "/" + view_path + "/" + name
+      @render_path = @application.view_root + "/" + view_path + "/" + name
     end
 
     def view_path

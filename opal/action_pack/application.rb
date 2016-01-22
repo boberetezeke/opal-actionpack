@@ -34,6 +34,10 @@ class Application
     ActiveRecord::MemoryStore.new
   end
 
+  def view_root
+    "views"
+  end
+
   def launch(initial_objects_json, session={}, block=Proc.new)
     capture_exception do
       initial_path = `window.location.pathname`
