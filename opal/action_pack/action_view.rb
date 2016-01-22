@@ -130,12 +130,22 @@ module ActionView
       end
     end
 
+    def content_for?(sym)
+      val = @top_renderer.content_fors[sym]
+      puts "content_for?(sym): sym = #{sym}, val = #{val}"
+      val
+    end
+
     def content_for(sym, &block)
-      # FIXME: need to implement
-      puts "content_for(entry): sym = #{sym}"
-      content = capture(&block)
-      puts "content_for: sym = #{sym}, content = #{content}"
-      @top_renderer.content_fors[sym] = content
+      if block
+        # FIXME: need to implement
+        puts "content_for(entry): sym = #{sym}"
+        content = capture(&block)
+        puts "content_for: sym = #{sym}, content = #{content}"
+        @top_renderer.content_fors[sym] = content
+      else
+        @top_renderer.content_fors[sym]
+      end
     end
 
     # OPAL-CHG-3 - need to implement all/most of UrlHelper
