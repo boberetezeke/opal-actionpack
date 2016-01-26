@@ -237,7 +237,7 @@ class ActionSyncer
 
   def handle_response(response)
     puts "response.status = #{response.status_code}"
-    if response.status_code.to_i == 200
+    if response.status_code.to_i >= 200 && response.status_code.to_i <= 299
       puts "OK: response #{response}"
       @object_queue.shift
       puts "OK: after remove head, process queue: #{@object_queue.size}"
