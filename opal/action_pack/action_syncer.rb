@@ -207,7 +207,11 @@ class ActionSyncer
     object_to_update.state = :updating
     object = object_to_update.object
    
-    root_url = @application.url_for_object(object)
+    if @application.respond_to?(:url_for_object)
+      root_url = @application.url_for_object(object)
+    else
+      root_url = @application.url_for_object_and_action(object, object_to_update.action)
+    end
     root_url_with_id = "#{root_url}/#{object_to_update.object.id}"
     object_key = @application.object_key_for_object(object)
 
