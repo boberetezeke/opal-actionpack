@@ -1,6 +1,7 @@
 module ActionView
   class Renderer
     include ::ActionView::Helpers::FormHelper
+    include ::ActionView::Helpers::FormOptionsHelper
     include ::ActionView::RecordIdentifier
     include ::ActionView::ModelNaming
 
@@ -22,6 +23,7 @@ module ActionView
 
       include_helpers(helper_module) if helper_module
 
+      #puts "**** in initialize with #{options}"
       if options[:path_parts]
         @path_parts = options[:path_parts].dup
         @path = @path_parts.join('/')
@@ -41,6 +43,7 @@ module ActionView
 
     DEFAULT_RENDER_OPTIONS = {locals: {}}
     def render(options={}, &block)
+      #puts "**** in render, options=#{options}"
       options = DEFAULT_RENDER_OPTIONS.merge(options)
       if options[:file]
         render_path = options[:file]
@@ -155,7 +158,7 @@ module ActionView
     end
 
     def link_to(text, path, options={})
-      puts "path = #{path}, options=#{options}"
+      #puts "path = #{path}, options=#{options}"
       "<a href=\"#{path}\"" + options.map{|k,v| "#{k}=\"#{v}\""}.join(' ') + ">#{text}</a>"
       #"<a href=\"#{path}\">#{text}</a>"
       #"<a href=\"#\">#{text}</a>"
