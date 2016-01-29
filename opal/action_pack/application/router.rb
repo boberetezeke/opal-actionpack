@@ -27,7 +27,7 @@ class Application
 
     def match_url(url)
       #puts "Router#match_url(#{url})"
-      parts, params = to_parts(url)
+      parts, params = UrlParser.to_parts(url)
 
       if parts == []
         return [@root_route.redirect_action, params]
@@ -50,34 +50,6 @@ class Application
     end
 
     private
-
-    def to_parts(url)
-      # remove leading '/'
-      if m = /^\/(.*)$/.match(url)
-        url = m[1]
-      end
-
-      # separate url on ?
-      if m = /^([^?]*)\?(.*)$/.match(url)
-        url = m[1]
-        keys_and_values = m[2].split(/&/)
-        params = {}
-        keys_and_values.each do |key_and_value|
-          key, value = key_and_value.split(/=/)
-          params[key] = value
-        end
-      else
-        params = {}
-      end
-
-      # FIXME: opal does split diff than MRI
-      if url == ""
-        parts = []
-      else
-        parts =  url.split(/\//)
-      end
-      [parts, params]
-    end
 
     def find_action(parts, params)
       #puts "Router#find_action: #{parts}, #{params}"

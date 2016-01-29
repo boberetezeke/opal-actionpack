@@ -41,6 +41,7 @@ require 'action_pack/form_helper/tags/url_field'
 
 require 'action_pack/history'
 require 'action_pack/path_handler'
+require 'action_pack/url_parser'
 require 'action_pack/action_controller'
 require 'action_pack/action_view'
 require 'action_pack/action_syncer'

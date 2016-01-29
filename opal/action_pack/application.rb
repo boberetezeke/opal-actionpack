@@ -10,7 +10,7 @@ class Application
     @@application
   end
 
-  attr_reader :session
+  attr_reader :session, :current_path
 
   def initialize
     #puts "in initialize of class #{self.class.to_s}"
@@ -112,6 +112,7 @@ class Application
   #                  and the values as the selector of the DOM element to render into
   #
   def go_to_route(url, options={})
+    @current_path = UrlParser.to_path(url)
     #puts "go_to_route: url = #{url}"
     @current_route_action, @params = self.class.routes.match_url(url)
     #puts "before push_state"
