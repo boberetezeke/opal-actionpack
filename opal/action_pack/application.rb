@@ -112,16 +112,31 @@ class Application
   #                  and the values as the selector of the DOM element to render into
   #
   def go_to_route(url, options={})
+    @after_render_block = nil
+    @came_from_route = true
     @current_path = UrlParser.to_path(url)
-    #puts "go_to_route: url = #{url}"
+    # puts "go_to_route: url = #{url}"
     @current_route_action, @params = self.class.routes.match_url(url)
-    #puts "before push_state"
+    # puts "before push_state"
     History.push_state({}, 'new route', url)
-    #puts "go_to_route: action = #{@current_route_action.name}, params = #{@params}"
+    # puts "go_to_route: action = #{@current_route_action.name}, params = #{@params}"
     @current_route_action.invoke_controller(@params, options)
-    #puts "go_to_route: after invoke_controller"
+    # puts "go_to_route: after invoke_controller"
   end
 
+  def after_render(&block)
+    @after_render_block = block
+  end
+  
+  def came_from_route
+    @came_from_route
+  end
+  
+  def render_is_done
+    @after_render_block.call if @after_render_block
+    @came_from_route = false
+  end
+  
   def render_route(url, options={})
     route_action, params = self.class.routes.match_url(url)
 
