@@ -2,8 +2,6 @@ class ActionController
   class Base
     include PathHandler
 
-    attr_reader :params
-
     class BoundEvent < Struct.new(:event, :selector); end
 
     def self.helper_method(sym)
@@ -19,6 +17,9 @@ class ActionController
       end
       @@helper_methods
     end
+    
+    attr_reader :params
+    attr_reader :renderer
 
     def initialize(params)
       @application = Application.instance
@@ -43,35 +44,48 @@ class ActionController
     #   :partial - true if rendering a partial
     #
     def render_template(options={})
-      puts "render_template(start)"
-      `var d = new Date(); console.log("time= " + d.getSeconds() + ":" + d.getMilliseconds());`
+      # puts "ActionController#render_template(start), options = #{options}"
+      #`var d = new Date(); console.log("time= " + d.getSeconds() + ":" + d.getMilliseconds());`
       #Timer.time_stamp("render_template (begin)")
       content_fors = options.delete(:content_for) || {}
       partial = options[:partial]
 
-      renderer = ActionView::Renderer.new(self, path: render_path)
+      # renderer = ActionView::Renderer.new(self, path: render_path)
       if partial
-        top_view_html = renderer.render(options)
+        # puts "ActionController#render_template (partial)"
+        top_view_html = @renderer.render(options)
       else
-        top_view_html = renderer.render(file: render_path)
+        # puts "ActionController#render_template (file)"
+        top_view_html = @renderer.render(file: render_path, options: {locals: @__locals})
       end
 
       content_for_htmls = {}
       content_fors.each do |key, selector|
-        content_for_html = renderer.content_fors[key]
-        puts "content for #{key} = #{content_for_html}"
+        content_for_html = @renderer.content_fors[key]
+        #puts "content for #{key} = #{content_for_html}"
         content_for_htmls[selector] = content_for_html
       end
-      puts "render_template(end)"
-      `var d = new Date(); console.log("time= " + d.getSeconds() + ":" + d.getMilliseconds());`
+      #`var d = new Date(); console.log("time= " + d.getSeconds() + ":" + d.getMilliseconds());`
       [top_view_html, content_for_htmls]
     end
 
     def render(name_or_options)
+      # puts "ActionController#render: #{name_or_options}"
       if name_or_options.is_a?(Hash)
-        build_render_path("dummy")
-        render_template(name_or_options)
+        # puts "in render: is a Hash: #{name_or_options}"
+        top_level = name_or_options.delete('top_level')
+        if top_level
+          # puts "in render: IS top_level"
+          @__locals = name_or_options[:locals]
+          @renderer.locals = name_or_options[:locals]
+          build_render_path(top_level)
+        else
+          # puts "in render: is NOT top_level"
+          build_render_path("dummy")
+          render_template(name_or_options)
+        end
       else
+        # puts "in render: is not a Hash: #{name_or_options}"
         build_render_path(name_or_options)
       end
     end
@@ -79,6 +93,12 @@ class ActionController
     def invoke_action(action)
       # set up default render path
       @render_path = @application.view_root + "/" + view_path + "/" + action.name
+      # puts "ActionController#invoke_action#render_path: #{@render_path}, locals = #{@__locals}"
+      options = {path: @render_path}
+      if @__locals
+        options.merge(locals: @__locals)
+      end
+      @renderer = ActionView::Renderer.new(self, options)
       self.send(action.name)
     end
 
@@ -88,16 +108,13 @@ class ActionController
 
     def view_path
       controller_parts = self.class.to_s.split(/::/)
-      #puts "controller_parts = #{controller_parts}"
       if m = (/^(.*)ClientController$/.match(controller_parts[0]))
         controller_parts = [m[1].underscore] 
       else
         controller_parts = controller_parts[0..-2].map{|part| part.underscore} + [controller_root_name(controller_parts[-1])]
       end
 
-      #puts "controller_parts = #{controller_parts}"
       view_path = controller_parts.join("/")
-      #puts "view_path = #{view_path}"
       view_path
     end
 
@@ -141,7 +158,7 @@ class ActionController
     def bind_event(selector, event, options={})
       @bound_events[selector] = BoundEvent.new(event, selector)
       Element.find(selector).on(event) do
-        puts "bind_event: #{selector}: #{event}"
+        #puts "bind_event: #{selector}: #{event}"
         propagate = false
         capture_exception do
           if options[:returns_propagation_result]
@@ -150,7 +167,7 @@ class ActionController
             yield
           end
         end
-        puts "bind_event: propagate = #{propagate}"
+        #puts "bind_event: propagate = #{propagate}"
         propagate
       end
     end
