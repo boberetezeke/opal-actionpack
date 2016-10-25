@@ -6,7 +6,8 @@ module ActionView
     include ::ActionView::ModelNaming
 
     include PathHandler
-    attr_reader :absolute_path, :content_fors
+    attr_reader :absolute_path, :content_fors, :render_called
+    attr_accessor :locals
 
     INITIALIZE_DEFAULTS={locals: {}, path: ""}
     def initialize(controller, options={})
@@ -15,6 +16,7 @@ module ActionView
       @controller = controller
       @application = Application.instance
       @top_renderer = options[:top_renderer] || self
+      @render_called = false
 
       @content_fors = {}
 
@@ -43,14 +45,16 @@ module ActionView
 
     DEFAULT_RENDER_OPTIONS = {locals: {}}
     def render(options={}, &block)
-      #puts "**** in render, options=#{options}"
+      @render_called = true
+      # puts "ActionView#render, options=#{options}, locals=#{@locals}"
       options = DEFAULT_RENDER_OPTIONS.merge(options)
       if options[:file]
         render_path = options[:file]
         @absolute_path = render_path
+        # puts "ActionView#render, options[:file]: locals = #{@locals}"
       elsif options[:partial]
         partial_parts = options[:partial].split(/\//)
-        #puts "render:partial: #{partial_parts}, #{@path_parts}"
+        # puts "ActionView#render, options[:partial]: #{partial_parts}, #{@path_parts}"
 
         helper_module = nil
         if partial_parts.size == 1
@@ -64,12 +68,16 @@ module ActionView
         new_options = options.dup
         new_options.delete(:partial)
         new_options.merge!(file: render_path)
-        return self.class.new(@controller, path_parts: @path_parts, helper_module: helper_module, top_renderer: @top_renderer).render(new_options, &block)
+        
+        # puts "ActionView#render, before recurse new_options=#{new_options}"
+        return self.class.new(@controller, path_parts: @path_parts, helper_module: helper_module, top_renderer: @top_renderer, locals: options[:locals]).render(new_options, &block)
       elsif options[:text]
+        # puts "ActionView#render, options[:text]: #{options[:text]}"
         return options[:text]
       end
-      @locals = options[:locals]
+      
       copy_instance_variables_from(@controller)
+      # puts "ActionView#render, before render template: controller: path=#{render_path}, controller class=#{@controller.class}, locals = #{@locals}"
       template = Template[render_path]
       if !template
         raise "unable to find template: #{render_path} in paths: #{Template.paths}"
@@ -135,16 +143,16 @@ module ActionView
 
     def content_for?(sym)
       val = @top_renderer.content_fors[sym]
-      puts "content_for?(sym): sym = #{sym}, val = #{val}"
+      #puts "content_for?(sym): sym = #{sym}, val = #{val}"
       val
     end
 
     def content_for(sym, &block)
       if block
         # FIXME: need to implement
-        puts "content_for(entry): sym = #{sym}"
+        #puts "content_for(entry): sym = #{sym}"
         content = capture(&block)
-        puts "content_for: sym = #{sym}, content = #{content}"
+        #puts "content_for: sym = #{sym}, content = #{content}"
         @top_renderer.content_fors[sym] = content
       else
         @top_renderer.content_fors[sym]
