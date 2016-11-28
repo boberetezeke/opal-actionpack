@@ -411,6 +411,7 @@ module ActionView
           raise ArgumentError, "First argument in form cannot contain nil or be empty" unless object
           object_name = options[:as] || model_name_from_record_or_class(object).param_key
           apply_form_for_options!(record, object, options)
+          html_options = options[:html]
         end
 
         html_options[:data]   = options.delete(:data)   if options.has_key?(:data)
