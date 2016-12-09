@@ -162,7 +162,7 @@ module ActionView
     # OPAL-CHG-3 - need to implement all/most of UrlHelper
     def url_for(url_for_options)
       # FIXME: need to implement
-      "some_url"
+      url_for_options
     end
 
     def link_to(text, path, options={})
@@ -177,7 +177,7 @@ module ActionView
       options = DEFAULT_POLYMORPHIC_PATH_OPTIONS.merge(options)
       #OPAL-CHG-2
       #Application.routes.match_path(record.class.to_s, options[:format], record.id)
-      "/#{record.class.to_s}/#{record.id}"
+      "/#{record.class.to_s.underscore.pluralize}/#{record.id}"
     end
 
     # NOTE: stolen from url_helper
