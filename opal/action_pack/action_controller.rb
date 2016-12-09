@@ -20,6 +20,7 @@ class ActionController
     
     attr_reader :params
     attr_reader :renderer
+    attr_reader :action_name
 
     def initialize(params)
       @application = Application.instance
@@ -99,6 +100,7 @@ class ActionController
         options.merge(locals: @__locals)
       end
       @renderer = ActionView::Renderer.new(self, options)
+      @action_name = action.name
       self.send(action.name)
     end
 
