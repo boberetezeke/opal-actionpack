@@ -22,6 +22,7 @@ class Template
   def render(ctx = self)
     self.class.current_output_buffer = OutputBuffer.new(self.class.output_buffer_stack.size)
     result = ctx.instance_exec(self.class.current_output_buffer, &@body)
+    puts "Template#render = #{result}"
     self.class.pop_output_buffer
     result
   end
@@ -30,31 +31,36 @@ class Template
     def initialize(id)
       @id = id
       @buffer_id = 0
-      #puts "OutputBuffer(#{@id}, #{@buffer_id}): initialize: #{@buffer.inspect}"
+      puts "#{self}: initialize: #{@buffer.inspect}"
       @buffer_stack = []
       @buffer = []
       @attributes={}
     end
 
     def push_buffer
-      #puts "OutputBuffer(#{@id}, #{@buffer_id}): pushing buffer: #{@buffer.inspect}"
+      puts "#{self}: pushing buffer: #{@buffer.inspect}"
       @buffer_id += 1
       @buffer_stack.push(@buffer)
-      #puts "OutputBuffer(#{@id}, #{@buffer_id}): pushing to buffer stack: #{@buffer_stack.inspect}"
+      puts "#{self}: pushing to buffer stack: #{@buffer_stack.inspect}"
       @buffer = []
     end
 
     def pop_buffer
-      #puts "OutputBuffer(#{@id}, #{@buffer_id}): popping buffer: #{@buffer.inspect}"
-      #puts "OutputBuffer(#{@id}, #{@buffer_id}): popping buffer stack: #{@buffer_stack.inspect}"
+      puts "#{self}: popping buffer: #{@buffer.inspect}"
+      puts "#{self}: popping buffer stack: #{@buffer_stack.inspect}"
       @buffer_id -= 1
       @buffer = @buffer_stack.pop
-      #puts "OutputBuffer(#{@id}, #{@buffer_id}): after popping buffer: #{@buffer.inspect}"
+      puts "#{self}: after popping buffer: #{@buffer.inspect}"
     end
 
     def append(str)
-      #puts "OutputBuffer(#{@id}, #{@buffer_id}): append: #{str.inspect}"
+      puts "#{self}: append: #{str.inspect}"
+      puts "append: #{caller[0..5]}"
       @buffer << str
+    end
+
+    def to_s
+      "OutputBuffer(#{self.object_id}, #{@id}, #{@buffer_id})"
     end
 
     def attributes(*args)
@@ -67,7 +73,10 @@ class Template
     alias append= append
 
     def join
-      #puts "OutputBuffer(#{@id}, #{@buffer_id}): join: #{@buffer.join.inspect}"
+      @buffer.each do |buf|
+        puts "-- #{self}: join: #{buf}"
+      end
+      puts "#{self}: join: #{@buffer.join.inspect}"
       @buffer.join
     end
   end
