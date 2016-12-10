@@ -37,28 +37,76 @@ class ActionSyncer
 
   class ObjectsFromUpdates
     attr_accessor :frequency, :time_left
-    def initialize(url, frequency, url_block)
-      @url = url
+    def initialize(frequency, url_block)
       @frequency = frequency
       @time_left = frequency
       @url_block = url_block
     end
+    
+    def url
+      @url_block.call
+    end
 
     def time_expired?(elapsed_time)
-      self.time_left -= elapsed_time
-      if self.time_left <= 0
-        self.time_left = self.frequency
+      @time_left -= elapsed_time
+      if @time_left <= 0
+        @time_left = @frequency
         return true
       else
         return false
       end
     end
-
-    def url
-      if @url_block
-        @url_block.call
+  end
+  
+  class RemoteSaver
+    attr_reader :url, :object, :object_key, :action
+    
+    def initialize(url, object, object_key, action)
+      @url = url
+      @object = object
+      @object_key = object_key
+      @action = action
+      
+      puts "url = #{url}"
+      puts "object = #{object}"
+      puts "object_key = #{object_key}"
+      puts "action = #{@action}"
+    end
+    
+    def headers
+      headers = {"Accept" => 'application/json', "content-Type" => 'application/json'}
+    end
+    
+    def payload
+      {object_key => @object.attributes}
+    end
+    
+    def save
+      puts "action = #{action}, @action = #{@action}"
+      case @action
+      when :insert
+        puts "POST to (#{url}): object=#{object.attributes}"
+        HTTP.post(url, payload: payload, headers: headers).when do |response|
+          puts "response.json = #{response.json}"
+          puts "object_key = #{object_key}"
+          puts "object = [#{object.object_id}]:#{object}"
+          new_id = response.json[object_key]['id']
+          puts "new_id = #{new_id}"
+          object.update_id(new_id)
+          
+          puts "object (after) = [#{object.object_id}]:#{object}"
+          Promise.new.resolve(response)
+        end.error do |response|
+          Promise.new.reject(response)
+        end
+      when :update
+        puts "PUT to (#{url}): object=#{object.attributes}, payload: #{payload}"
+        HTTP.put(url, payload: payload, headers: headers)
+      when :delete
+        puts "ACTION(delete to (#{url})"
+        HTTP.delete(url, headers: headers)
       else
-        @url
+        raise "Unknown action in save: #{action.inspect}"
       end
     end
   end
@@ -137,17 +185,8 @@ class ActionSyncer
   # 
   # when the get succeeds, save the objects locally
   #
-  def update_every(*args, &block)
-    if args.size == 1
-      frequency = args.first
-      raise ArgumentError.new("block expected") unless block
-    elsif args.size == 2
-      url, frequence = args
-    else
-      raise ArgumentError.new("expecting either a frequency and block or a url and a frequency")
-    end
-
-    updater = ObjectsFromUpdates.new(url, frequency, block)
+  def update_every(frequency, url_block)
+    updater = ObjectsFromUpdates.new(frequency, url_block)
     @update_queue.push(updater)
     updater
   end
@@ -171,9 +210,9 @@ class ActionSyncer
             HTTP.get(updater.url, headers: headers) do |response| 
               #puts "GET(#{updater.url}) got response"
               #`var d = new Date(); console.log("time= " + d.getSeconds() + ":" + d.getMilliseconds());`
-              if response.status_code.to_i == 200
+              if response.status_code.to_i >= 200 && response.status_code.to_i <= 299
                 @application.update_every_succeeded
-                #puts "response.json = #{response.json}"
+                puts "response.json = #{response.json}"
                 response.json.each do |object_json|
                   @application.create_or_update_object_from_object_key_and_attributes(object_json.keys.first, object_json.values.first)
                 end 
@@ -181,7 +220,6 @@ class ActionSyncer
                 puts "ERROR: status code: #{response.status_code}"
                 @application.update_every_failed
               end
-
               # puts "GET(#{updater.url}) processed response"
               #`var d = new Date(); console.log("time= " + d.getSeconds() + ":" + d.getMilliseconds());`
             end
@@ -203,65 +241,53 @@ class ActionSyncer
     process_queue_entry(@object_queue.first)
   end
 
-  def process_queue_entry(object_to_update)
-    object_to_update.state = :updating
-    object = object_to_update.object
-   
+
+  def object_url(action, object)
     if @application.respond_to?(:url_for_object)
       root_url = @application.url_for_object(object)
     else
-      root_url = @application.url_for_object_and_action(object, object_to_update.action)
+      root_url = @application.url_for_object_and_action(object, action)
     end
-    root_url_with_id = "#{root_url}/#{object_to_update.object.id}"
-    object_key = @application.object_key_for_object(object)
-
-    payload = {object_key => object.attributes}
-    headers = {"Accept" => 'application/json', "content-Type" => 'application/json'}
-    case object_to_update.action 
-    when :insert
-      puts "POSTING(#{root_url}): object=#{object.attributes}"
-      HTTP.post(root_url, payload: payload, headers: headers) do |response| 
-        puts "POST RESPONSE(#{root_url}): #{response.body}"
-        if handle_response(response)
-          object.update_id(response.json[object_key]['id'])
-        end
-      end
-    when :update
-      puts "PUT(#{root_url_with_id}): object=#{object.attributes}"
-      HTTP.put(root_url_with_id, payload: payload, headers: headers) do |response| 
-        handle_response(response)
-      end
-    when :delete
-      puts "DELETE(#{root_url_with_id})"
-      HTTP.delete(root_url_with_id, headers: headers) do |response| 
-        handle_response(response)
-      end
+    if action != :insert
+      return "#{root_url}/#{object.id}"
+    else
+      return root_url
+    end
+  end
+    
+  def process_queue_entry(object_to_update)
+    RemoteSaver.new(
+      object_url(object_to_update.action, object_to_update.object),
+      object_to_update.object, 
+      @application.object_key_for_object(@object), 
+      object_to_update.action
+    ).save.when do |response|
+      handle_ok_response(response)
+    end.error do
+      handle_error_response(response)
     end
   end
 
-  def handle_response(response)
-    puts "response.status = #{response.status_code}"
-    if response.status_code.to_i >= 200 && response.status_code.to_i <= 299
-      puts "OK: response #{response}"
-      @object_queue.shift
-      puts "OK: after remove head, process queue: #{@object_queue.size}"
-      process_queue if @object_queue.size > 0
-      return true
+  def handle_ok_response(response)
+    puts "OK: response #{response}"
+    @object_queue.shift
+    puts "OK: after remove head, process queue: #{@object_queue.size}"
+    process_queue if @object_queue.size > 0
+  end
+  
+  def handle_error_response(response)
+    puts "ERROR: response #{response}"
+    object_to_update = @object_queue.first
+    object_to_update.retry_count += 1
+    if object_to_update.retry_count >= @max_retries
+      puts "NO MORE TRIES: #{object_to_update.retry_count} > #{@max_retries}"
+      @application.retry_count_hit
     else
-      puts "ERROR: response #{response}"
-      object_to_update = @object_queue.first
-      object_to_update.retry_count += 1
-      if object_to_update.retry_count >= @max_retries
-        puts "NO MORE TRIES: #{object_to_update.retry_count} > #{@max_retries}"
-        @application.retry_count_hit
-      else
-        puts "RETRY # #{object_to_update.retry_count} in #{object_to_update.retry_count} seconds"
-        after object_to_update.retry_count.seconds do
-          object_to_update.state = :idle
-          process_queue_entry(object_to_update)
-        end
+      puts "RETRY # #{object_to_update.retry_count} in #{object_to_update.retry_count} seconds"
+      after object_to_update.retry_count.seconds do
+        object_to_update.state = :idle
+        process_queue_entry(object_to_update)
       end
-      return false
     end
   end
 
