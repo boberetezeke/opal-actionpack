@@ -57,14 +57,37 @@ class Application
     def match(parts, params)
       #puts "Route:match: parts: #{parts}, name: #{@name}"
       return nil unless @name == parts[0]
-      @actions.each do |action|
-        return action if action.match(parts[1..-1], params)
+      collection_actions.each do |action|
+        puts "Route:match: checking action: #{action}, parts[1..-1]=#{parts[1..-1]}, params=#{params}"
+        if action.match(parts[1..-1], params)
+          puts "Route:match: MATCHED"
+          return action
+        end
+      end
+      member_actions.each do |action|
+        puts "Route:match: checking action: #{action}"
+        if action.match(parts[1..-1], params)
+          puts "Route:match: MATCHED"
+          return action
+        end
       end
       return nil
     end
+    
+    def collection_actions
+      @actions.select{|action| action.action_type == :collection}
+    end
+    
+    def member_actions
+      @actions.select{|action| action.action_type == :member}
+    end
 
+    def to_s
+      "actions = #{@actions}"
+    end
+    
     def match_path(resource_name, action_name, *args)
-      #puts "Route#match_path, name = #{@name}, resource_name = #{resource_name}"
+      puts "Route#match_path, name = #{@name}, resource_name = #{resource_name}"
       return nil unless @name.to_s == resource_name.to_s
       @actions.each do |action|
         action_path, params = action.match_path(action_name, *args)

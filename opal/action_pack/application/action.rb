@@ -1,6 +1,6 @@
 class Application
   class Action
-    attr_reader :name
+    attr_reader :name, :action_type
     def initialize(route, action_type, options)
       @route = route
       @action_type = action_type
@@ -9,6 +9,9 @@ class Application
       else
         @name = options[:name]
         @parts = options[:parts]
+        if action_type == :collection
+          @parts = [name] unless name == :index
+        end
       end
     end
 
@@ -80,6 +83,10 @@ class Application
           raise "argument passed to collection path"
         end
       end
+    end
+    
+    def to_s
+      "type: #{@action_type}, name: #{@name}, parts: #{@parts}"
     end
 
     # 
