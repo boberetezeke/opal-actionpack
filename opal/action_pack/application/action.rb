@@ -127,7 +127,7 @@ class Application
           Document.find(selector).html = html
         end
       end
-      Application.instance.render_is_done
+      Application.instance.render_is_done(options[:render_view])
 
       controller_client_class_name = "#{@route.name.camelize}ClientController"
       controller_client_class = nil

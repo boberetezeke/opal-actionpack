@@ -132,8 +132,8 @@ class Application
     @came_from_route
   end
   
-  def render_is_done
-    @after_render_block.call if @after_render_block
+  def render_is_done(did_render)
+    @after_render_block.call(did_render) if @after_render_block
     @came_from_route = false
   end
   
