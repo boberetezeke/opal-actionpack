@@ -90,6 +90,20 @@ class ActionController
         build_render_path(name_or_options)
       end
     end
+    
+    class Formatter
+      def html(&block)
+        block.call
+      end
+      
+      def json(&block)
+      end
+    end
+    
+    def respond_to(&block)
+      format = Formatter.new
+      block.call(format)
+    end
 
     def invoke_action(action)
       # set up default render path

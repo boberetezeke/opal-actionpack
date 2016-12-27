@@ -25,6 +25,10 @@ class Application
   def is_client?
     true
   end
+  
+  def app_starting?
+    @launching
+  end
 
   def routes
     self.class.routes
@@ -40,6 +44,7 @@ class Application
 
   def launch(initial_objects_json, session={}, block=Proc.new)
     capture_exception do
+      @launching = true
       initial_path = `window.location.pathname`
       initial_hash = `window.location.hash`
       initial_search = `window.location.search`
@@ -59,6 +64,7 @@ class Application
       block.call if block
 
       go_to_route(initial_url, render_view: false)
+      @launching = false
     end
   end
 
