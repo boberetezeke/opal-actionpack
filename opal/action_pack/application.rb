@@ -117,17 +117,24 @@ class Application
   #   :content_for - a hash with keys as the symbol for the content to be rendered (e.g. :footer) 
   #                  and the values as the selector of the DOM element to render into
   #
-  def go_to_route(url, options={})
+  def go_to_route(url, options={}, additional_params: {})
     @after_render_block = nil
     @came_from_route = true
     @current_path = UrlParser.to_path(url)
     # puts "go_to_route: url = #{url}"
     @current_route_action, @params = self.class.routes.match_url(url)
+    puts "go_to_route: params = #{@params}"
+    @params = @params.merge(additional_params)
+    puts "go_to_route: params = #{@params} after additional_params added"
+    puts "go_to_route: render is done: #{@came_from_route}"
+    @controller, @client_controller = @current_route_action.invoke_controller(@params, options)
+    
     # puts "before push_state"
-    History.push_state({}, 'new route', url)
-    # puts "go_to_route: action = #{@current_route_action.name}, params = #{@params}"
-    @current_route_action.invoke_controller(@params, options)
-    # puts "go_to_route: after invoke_controller"
+    if options[:push_history]
+      History.push_state({}, 'new route', url)
+    end
+    
+    [@controller, @client_controller]
   end
 
   def after_render(&block)
