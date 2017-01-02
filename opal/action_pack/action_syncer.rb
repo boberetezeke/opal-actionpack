@@ -5,7 +5,7 @@ module Kernel
   end
 
   def after delay, &block
-    callback = `function(){ #{block.call}; }`
+    callback = `function(){ #{capture_exception { block.call} }; }`
     `setTimeout(callback, #{delay * 1000})`
   end
 end
