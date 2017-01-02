@@ -92,13 +92,14 @@ class Application
     # 
     # Invoke a controller which will optionally render the associated view
     #
-    # params - url params hash
-    # options -
+    # @param params [Hash] - URL params hash
+    # @param options [Hash] - options for invocation
     #   :render_view - true if the view is being rendered
     #   :render_only - only render but don't call add_bindings on client controller
     #   :selector - the jquery selector to select the DOM element to render into
     #   :content_for - a hash with keys as the symbol for the content to be rendered (e.g. :footer) 
     #                  and the values as the selector of the DOM element to render into
+    # @return [Array<ActionController::Base, ActionController::Base>] - return server/client controllers
     #
     def invoke_controller(params, options)
       if @redirect_action
@@ -113,7 +114,7 @@ class Application
         puts "INFO: client class: #{controller_class_name} doesn't exist"
       end
 
-      return unless controller_class
+      return [nil, nil] unless controller_class
 
       controller = controller_class.new(params)
       controller.invoke_action(self)
@@ -139,7 +140,7 @@ class Application
         puts "INFO: client class: #{controller_client_class_name} doesn't exist"
       end
 
-      return unless controller_client_class
+      return [controller, nil] unless controller_client_class
 
       begin
         controller_action_class = controller_client_class.const_get(@name.capitalize)
@@ -153,6 +154,8 @@ class Application
       copy_instance_variables(controller, controller_action)
       controller_action.initialize(params)
       controller_action.add_bindings unless options[:render_only]
+      
+      return [controller, controller_action]
     end
 
     # FIXME: similar method in action_view.rb
