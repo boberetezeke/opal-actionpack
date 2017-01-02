@@ -52,6 +52,7 @@ class ActionController
       partial = options[:partial]
 
       # renderer = ActionView::Renderer.new(self, path: render_path)
+      # puts "renderer = #{@renderer.inspect}"
       if partial
         # puts "ActionController#render_template (partial)"
         top_view_html = @renderer.render(options)
@@ -108,7 +109,7 @@ class ActionController
     def invoke_action(action)
       # set up default render path
       @render_path = @application.view_root + "/" + view_path + "/" + action.name
-      # puts "ActionController#invoke_action#render_path: #{@render_path}, locals = #{@__locals}"
+      puts "ActionController#invoke_action(#{action})#render_path: #{@render_path}, locals = #{@__locals}"
       options = {path: @render_path}
       if @__locals
         options.merge(locals: @__locals)
@@ -153,9 +154,6 @@ class ActionController
       @application.go_to_route(*(new_args + [options]), &block)
     end
 
-    def render_route(*args, &block)
-      @application.render_route(*args, &block)
-    end
     #
     # bind to a DOM event
     #
