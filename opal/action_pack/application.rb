@@ -1,48 +1,90 @@
+#
+# The application class holds the starting point for launching the client side application
+#
+# 
+# 
 class Application
+  #
+  # return router for use in routes.rb
+  #
+  # @return [Router] - the router for the application
+  #
   def self.routes
     @routes ||= Router.new
   end
 
+  #
+  # return the single instance of the application
+  #
+  # @return [Application] - the application object
+  #
   def self.instance
     return @@application if defined?(@@application)
     @@application = new
-    #puts "@@application = #{@@application}"
     @@application
   end
 
   attr_reader :session, :current_path
 
+  #
+  # Initialize the application and establish connection to the local store
+  #
   def initialize
     #puts "in initialize of class #{self.class.to_s}"
     @store = get_store
     ActiveRecord::Base.connection = @store
   end
 
-  def is_server?
-    false
-  end
-
-  def is_client?
-    true
-  end
-  
+  #
+  # return if the app is starting from a call to launch
+  # 
+  # @return [Boolean] - true if the app is starting from launching
+  #
   def app_starting?
     @launching
   end
 
+  #
+  # return the router
+  # 
+  # @return [Router] - the router for the application
+  #
   def routes
     self.class.routes
   end
 
+  protected
+  
+  #
+  # return the store to use for the application, override this to provide your
+  # own store. By default this returns an in memory store
+  #
+  # @return [ActiveRecord::Store] - the store for the application
+  #
   def get_store
     ActiveRecord::MemoryStore.new
   end
 
+  #
+  # The name for the root path for the views inside of the opal path
+  #
+  # @return [String] - the views path root
+  #
   def view_root
     "views"
   end
+  
+  public
 
+  #
+  # Start the application by launching it with a set of objects, session info and a block
+  #
+  # @param initial_objects_json [String] - json string for the application's starting data
+  # @param session [Hash] - a hash of keys from the session
+  # @param block [Proc`] - block to call just before going to the controller route
+  #
   def launch(initial_objects_json, session={}, block=Proc.new)
+    puts "block = #{block}"
     capture_exception do
       @launching = true
       initial_path = `window.location.pathname`
@@ -68,6 +110,9 @@ class Application
     end
   end
 
+  #
+  # resolve a path 
+  #
   def resolve_path(path, *args)
     # FIXME: can't detect plural by checking for trailing 's'
     #puts "resolve_path: #{path}, args = #{args}"
@@ -105,17 +150,19 @@ class Application
   # 
   # Goes to the route specified as passes options on to invoke_controller
   #
-  # This uses the history API to push this route on the browser's history stack.
   # Then it invokes the server side controller, optionally render's the view and then
   # invokes the client side controller if it exists.
   #
-  # url - url to go to with optional params in uri format
-  # options -
+  # @param url [String] - url to go to with optional params in uri format
+  # @param options [Hash] - hash of options
   #   :render_view - true if the view is being rendered
   #   :render_only - only render but don't call add_bindings on client controller
   #   :selector - the jquery selector to select the DOM element to render into
   #   :content_for - a hash with keys as the symbol for the content to be rendered (e.g. :footer) 
   #                  and the values as the selector of the DOM element to render into
+  #   :push_history - true if push to browser history
+  #
+  # @return [Array<ApplicationController::Base, ApplicationController::Base>] - the server and client controllers created
   #
   def go_to_route(url, options={}, additional_params: {})
     @after_render_block = nil
@@ -137,95 +184,30 @@ class Application
     [@controller, @client_controller]
   end
 
+  #
+  # register a block to be called after rendering is done
+  #
+  # @param block [Proc] - the block to call after rendering is done
+  #
   def after_render(&block)
     @after_render_block = block
   end
   
+  #
+  # return if the render was done after coming from a route
+  #
+  # @return [Boolean] - true if render was done in response to a go_to_route
+  #
   def came_from_route
     @came_from_route
   end
   
+  #
+  # render is done
+  #
   def render_is_done(did_render)
+    puts "render is done: #{@came_from_route}"
     @after_render_block.call(did_render) if @after_render_block
     @came_from_route = false
   end
-  
-  def render_route(url, options={})
-    route_action, params = self.class.routes.match_url(url)
-
-    route_action.invoke_controller(params, {render_only: true}.merge(options))
-  end
-
-  ROUTE_MAP = {
-    "Calculator" => {route: 'calculators', key: 'calculator'},
-    "Results" => {route: 'results', key: 'result'}
-  }
-
-  def connect
-    @store.on_change do |change_type, object|
-      route = "/" + ROUTE_MAP[object.class.to_s][:route]
-      key = ROUTE_MAP[object.class.to_s][:key]
-      case change_type
-      when :insert
-        #puts "INSERT: #{object}"
-        HTTP.post route, {:payload => {:key => object.to_json}} 
-      when :delete
-        #puts "DELETE: #{object}"
-      when :update
-        #puts "UPDATE: #{object}"
-        HTTP.put "#{route}/#{object.id}", object.attributes do |response|
-        end
-      end
-    end
-  end
 end
-
-=begin
-class Node
-  attr_reader :children
-  def initialize(name=nil)
-    @name = name
-    @children = []
-  end
- 
-  def node(name, &block)
-    child = Node.new(name)
-    @children.push(child)
-    child.instance_exec(&block) if block
-  end
- 
-  def instance_exec(*args, &block)
-    method_name = nil
-      n = 0
-      n += 1 while respond_to?(method_name = "__instance_exec#{n}")
-      self.class.instance_eval { define_method(method_name, &block) }
- 
-    begin
-      send(method_name, *args)
-    ensure
-      self.class.instance_eval { remove_method(method_name) } rescue nil
-    end
-  end
- 
-  def to_s
-    
-    @name + "[" + @children.map{|child| child.to_s}.join(", ") + "]"
-  end
-end
- 
-def tree(name, &block)
-  @tree = Node.new(name)
-  @tree.instance_exec(&block)
-  @tree
-end
- 
-tree("Simpsons family tree") do
-  node("gramps") do
-    node("homer+marge") do
-      node("bart")
-      node("lisa")
-      node("maggie")
-    end
-  end
-end
-=end
