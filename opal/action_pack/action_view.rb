@@ -25,7 +25,6 @@ module ActionView
 
       include_helpers(helper_module) if helper_module
 
-      #puts "**** in initialize with #{options}"
       if options[:path_parts]
         @path_parts = options[:path_parts].dup
         @path = @path_parts.join('/')
