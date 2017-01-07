@@ -99,7 +99,7 @@ class Application
     #   :selector - the jquery selector to select the DOM element to render into
     #   :content_for - a hash with keys as the symbol for the content to be rendered (e.g. :footer) 
     #                  and the values as the selector of the DOM element to render into
-    # @return [Array<ActionController::Base, ActionController::Base>] - return server/client controllers
+    # @return ActionController::Base - the server controller created
     #
     def invoke_controller(params, options)
       if @redirect_action
@@ -117,8 +117,20 @@ class Application
       return [nil, nil] unless controller_class
 
       controller = controller_class.new(params)
-      controller.invoke_action(self)
+      controller_ret = controller.invoke_action(self)
+      
+      if controller_ret.is_a?(Promise)
+        controller_ret.then do
+          after_action_invocation(controller, options)
+        end
+      else
+        after_action_invocation(controller, options)
+      end
+      
+      return controller
+    end
 
+    def after_action_invocation(controller, options)
       if options[:render_view]
         html, content_for_htmls = controller.render_template(content_for: options[:content_for])
         #puts "invoke_controller: html = #{html}"
@@ -140,7 +152,7 @@ class Application
         puts "INFO: client class: #{controller_client_class_name} doesn't exist"
       end
 
-      return [controller, nil] unless controller_client_class
+      return unless controller_client_class
 
       begin
         controller_action_class = controller_client_class.const_get(@name.capitalize)
@@ -154,10 +166,8 @@ class Application
       copy_instance_variables(controller, controller_action)
       controller_action.initialize(params)
       controller_action.add_bindings unless options[:render_only]
-      
-      return [controller, controller_action]
     end
-
+    
     # FIXME: similar method in action_view.rb
     def copy_instance_variables(object_from, object_to)
       object_from.instance_variables.each do |ivar|

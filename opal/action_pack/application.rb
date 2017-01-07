@@ -161,27 +161,29 @@ class Application
   #   :content_for - a hash with keys as the symbol for the content to be rendered (e.g. :footer) 
   #                  and the values as the selector of the DOM element to render into
   #   :push_history - true if push to browser history
+  #   :keep_current_path - don't overwrite current path if true
   #
   # @return [Array<ApplicationController::Base, ApplicationController::Base>] - the server and client controllers created
   #
-  def go_to_route(url, options={}, additional_params: {})
+  def go_to_route(url, options={}, additional_params={})
     @after_render_block = nil
     @came_from_route = true
-    @current_path = UrlParser.to_path(url)
+    puts "go_to_route: #{url}, options=#{options}, additional_params=#{additional_params}"
+    @current_path = UrlParser.to_path(url) unless options[:keep_current_path]
     # puts "go_to_route: url = #{url}"
-    @current_route_action, @params = self.class.routes.match_url(url)
+    current_route_action, @params = self.class.routes.match_url(url)
     puts "go_to_route: params = #{@params}"
     @params = @params.merge(additional_params)
     puts "go_to_route: params = #{@params} after additional_params added"
     puts "go_to_route: render is done: #{@came_from_route}"
-    @controller, @client_controller = @current_route_action.invoke_controller(@params, options)
+    @controller = current_route_action.invoke_controller(@params, options)
     
     # puts "before push_state"
     if options[:push_history]
       History.push_state({}, 'new route', url)
     end
     
-    [@controller, @client_controller]
+    @controller
   end
 
   #
