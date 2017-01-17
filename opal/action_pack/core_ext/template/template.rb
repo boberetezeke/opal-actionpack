@@ -50,7 +50,7 @@ class Template
       # puts "#{self}: popping buffer stack: #{@buffer_stack.inspect}"
       @buffer_id -= 1
       @buffer = @buffer_stack.pop
-      puts "#{self}: after popping buffer: #{@buffer.inspect}"
+      # puts "#{self}: after popping buffer: #{@buffer.inspect}"
     end
 
     def append(str)
