@@ -128,6 +128,11 @@ class Application
       if controller_ret.is_a?(Promise)
         controller_ret.then do
           after_action_invocation(controller, options)
+        end.fail do |e|
+          logger.debug "Controller action failed because: #{e}"
+          e.backtrace[0..10].each do |bt|
+            logger.debug bt
+          end
         end
       else
         after_action_invocation(controller, options)
