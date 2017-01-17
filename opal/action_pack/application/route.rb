@@ -1,5 +1,7 @@
 class Application
   class Route
+    include SemanticLogger::Loggable
+
     ALL_COLLECTION_ACTIONS = [:index]
     ALL_RESOURCE_ACTIONS = [:show, :new, :create, :edit, :update, :destroy]
 
@@ -58,16 +60,16 @@ class Application
       #puts "Route:match: parts: #{parts}, name: #{@name}"
       return nil unless @name == parts[0]
       collection_actions.each do |action|
-        puts "Route:match: checking action: #{action}, parts[1..-1]=#{parts[1..-1]}, params=#{params}"
+        logger.debug "Route:match: checking action: #{action}, parts[1..-1]=#{parts[1..-1]}, params=#{params}"
         if action.match(parts[1..-1], params)
-          puts "Route:match: MATCHED"
+          logger.debug "Route:match: MATCHED"
           return action
         end
       end
       member_actions.each do |action|
-        puts "Route:match: checking action: #{action}"
+        logger.debug "Route:match: checking action: #{action}"
         if action.match(parts[1..-1], params)
-          puts "Route:match: MATCHED"
+          logger.debug "Route:match: MATCHED"
           return action
         end
       end
@@ -87,7 +89,7 @@ class Application
     end
     
     def match_path(resource_name, action_name, *args)
-      puts "Route#match_path, name = #{@name}, resource_name = #{resource_name}"
+      logger.debug "Route#match_path, name = #{@name}, resource_name = #{resource_name}"
       return nil unless @name.to_s == resource_name.to_s
       @actions.each do |action|
         action_path, params = action.match_path(action_name, *args)
@@ -103,8 +105,8 @@ class Application
         #
         params_string = params.map{|key, value| "#{key}=#{value}"}.join("&")
 
-        #puts "action_path = #{action_path}"
-        #puts "params_string = #{params_string}"
+        logger.debug "action_path = #{action_path}"
+        logger.debug "params_string = #{params_string}"
         if action_path
           if action_path == ""
             url =  "/#{resource_name}"

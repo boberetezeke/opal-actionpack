@@ -1,6 +1,7 @@
 class ActionController
   class Base
     include PathHandler
+    include SemanticLogger::Loggable
 
     class BoundEvent < Struct.new(:event, :selector); end
 
@@ -109,7 +110,7 @@ class ActionController
     def invoke_action(action)
       # set up default render path
       @render_path = @application.view_root + "/" + view_path + "/" + action.name
-      puts "ActionController#invoke_action(#{action})#render_path: #{@render_path}, locals = #{@__locals}"
+      logger.debug "ActionController#invoke_action(#{action})#render_path: #{@render_path}, locals = #{@__locals}"
       options = {path: @render_path}
       if @__locals
         options.merge(locals: @__locals)

@@ -4,6 +4,8 @@
 # 
 # 
 class Application
+  include SemanticLogger::Loggable
+
   #
   # return router for use in routes.rb
   #
@@ -84,7 +86,7 @@ class Application
   # @param block [Proc`] - block to call just before going to the controller route
   #
   def launch(initial_objects_json, session={}, block=Proc.new)
-    puts "block = #{block}"
+    logger.debug "block = #{block}"
     capture_exception do
       @launching = true
       initial_path = `window.location.pathname`
@@ -115,7 +117,7 @@ class Application
   #
   def resolve_path(path, *args)
     # FIXME: can't detect plural by checking for trailing 's'
-    #puts "resolve_path: #{path}, args = #{args}"
+    logger.debug "resolve_path: #{path}, args = #{args}"
     m = /^(([^_]+)_)?((\w+?)(s)?)$/.match(path)
     if m
       action_with_underscore = m[1]
@@ -124,18 +126,18 @@ class Application
       resource_root = m[4]
       is_plural = m[5]
 
-      #puts "resolve_path: matched pattern: #{m}, action = #{action.inspect}, resource = #{resource}, is_plural=#{is_plural.inspect}"
+      logger.debug "resolve_path: matched pattern: #{m}, action = #{action.inspect}, resource = #{resource}, is_plural=#{is_plural.inspect}"
       if action_with_underscore
-        #puts "resolve_path: multi part path, action = #{action}"
+        logger.debug "resolve_path: multi part path, action = #{action}"
         if !is_plural
           resource = resource.pluralize
         end
       else
         if is_plural
-          #puts "resolve_path: single part path, plural"
+          logger.debug "resolve_path: single part path, plural"
           action = 'index'
         else
-          #puts "resolve_path: single part path, singular"
+          logger.debug "resolve_path: single part path, singular"
           resource = resource.pluralize
           action = 'show'
         end
@@ -168,14 +170,14 @@ class Application
   def go_to_route(url, options={}, additional_params={})
     @after_render_block = nil
     @came_from_route = true
-    puts "go_to_route: #{url}, options=#{options}, additional_params=#{additional_params}"
+    logger.debug "go_to_route: #{url}, options=#{options}, additional_params=#{additional_params}"
     @current_path = UrlParser.to_path(url) unless options[:keep_current_path]
     # puts "go_to_route: url = #{url}"
     current_route_action, @params = self.class.routes.match_url(url)
-    puts "go_to_route: params = #{@params}"
+    logger.debug "go_to_route: params = #{@params}"
     @params = @params.merge(additional_params)
-    puts "go_to_route: params = #{@params} after additional_params added"
-    puts "go_to_route: render is done: #{@came_from_route}"
+    logger.debug "go_to_route: params = #{@params} after additional_params added"
+    logger.debug "go_to_route: render is done: #{@came_from_route}"
     @controller = current_route_action.invoke_controller(@params, options)
     
     # puts "before push_state"
@@ -208,7 +210,7 @@ class Application
   # render is done
   #
   def render_is_done(did_render)
-    puts "render is done: #{@came_from_route}"
+    logger.debug "render is done: #{@came_from_route}"
     @after_render_block.call(did_render) if @after_render_block
     @came_from_route = false
   end

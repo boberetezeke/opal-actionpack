@@ -1,3 +1,5 @@
+require 'semantic_logger'
+
 require 'action_pack/core_ext/object/blank.rb'
 require 'action_pack/core_ext/object/capture_exception.rb'
 require 'action_pack/core_ext/hash/slice'

@@ -1,5 +1,7 @@
 module ActionView
   class Renderer
+    include SemanticLogger::Loggable
+
     include ::ActionView::Helpers::FormHelper
     include ::ActionView::Helpers::FormOptionsHelper
     include ::ActionView::RecordIdentifier
@@ -45,7 +47,7 @@ module ActionView
     DEFAULT_RENDER_OPTIONS = {locals: {}}
     def render(options={}, &block)
       @render_called = true
-      # puts "ActionView#render, options=#{options}, locals=#{@locals}"
+      logger.debug "ActionView#render, options=#{options}, locals=#{@locals}"
       options = DEFAULT_RENDER_OPTIONS.merge(options)
       if options[:file]
         render_path = options[:file]

@@ -1,5 +1,7 @@
 class Application
   class Action
+    include SemanticLogger::Loggable
+
     attr_reader :name, :action_type
     def initialize(route, action_type, options)
       @route = route
@@ -16,20 +18,20 @@ class Application
     end
 
     def match(parts, params)
-      #puts "Action:match: parts: #{parts.inspect}, name: #{@name}, action_parts: #{@parts.inspect}"
+      #logger.debug "Action:match: parts: #{parts.inspect}, name: #{@name}, action_parts: #{@parts.inspect}"
       return false if parts.size != @parts.size
       return true if parts.size == 0
 
       @parts.each_with_index do |part, index|
-        #puts "part = #{part}"
+        #logger.debug "part = #{part}"
         if part.is_a?(String)
-          #puts "part: #{part}, matches: #{parts[index]}"
+          #logger.debug "part: #{part}, matches: #{parts[index]}"
           return true if /#{part}/.match(parts[index])
         else
           param_key = part.keys.first
           matcher = /(#{part.values.first})/
           if m = matcher.match(parts[index])
-            #puts "matcher: #{matcher}, matches #{parts[index]}"
+            #logger.debug "matcher: #{matcher}, matches #{parts[index]}"
             params[param_key] = m[1]
             return true
           end
@@ -39,10 +41,11 @@ class Application
     end
 
     def match_path(action_name, *args)
-      #puts "Action#match_path: action_name = #{action_name}, name = #{@name}, args = #{args.inspect}"
+      logger.debug "Action#match_path: action_name = '#{action_name.to_s}', name = '#{@name.to_s}', args = #{args.inspect}"
       params = {}
       return [false, params] unless @name.to_s == action_name.to_s
 
+      logger.debug "Action#match_path: name == action_name"
       if args.size > 0 
         if args.last.is_a?(Hash)
           params = args.pop
@@ -50,6 +53,7 @@ class Application
       end
 
       if @action_type == :member
+        logger.debug "Action#match_path: member"
         if args.size == 1
           object = args.first
           if object.is_a?(String) || object.is_a?(Numeric)
@@ -57,27 +61,29 @@ class Application
           else
             object_id = object.id
           end
-          #puts "object_id = #{object_id}, name = #{@name}"
+          logger.debug "Action#match_path: object_id = #{object_id}, name = #{@name}"
           #
           if @name.to_s == 'show'
             action_root = object_id.to_s
           else
             action_root = "#{object_id}/#{@name}"
           end
+          logger.debug "Action#match_path(member): returning: action_root = #{action_root}, params=#{params}"
           return [action_root, params]
         else
           raise "requires one argument passed to member path"
         end
       else
+        logger.debug "Action#match_path: collection"
         if args.size == 0
-          #puts "Action#match_path: @name = #{@name}"
+          logger.debug "Action#match_path: @name = #{@name}"
           if @name.to_s == 'index'
             # FIXME: need to url encode parameters
             action_root = ""
           else
             action_root = @name
           end
-          #puts "action_root = #{action_root}, params=#{params}"
+          logger.debug "Action#match_path(collection): returning: action_root = #{action_root}, params=#{params}"
           return [action_root, params]
         else
           raise "argument passed to collection path"
@@ -111,7 +117,7 @@ class Application
       begin
         controller_class = Object.const_get(controller_class_name)
       rescue Exception => e
-        puts "INFO: client class: #{controller_class_name} doesn't exist"
+        logger.debug "INFO: client class: #{controller_class_name} doesn't exist"
       end
 
       return [nil, nil] unless controller_class
@@ -133,10 +139,10 @@ class Application
     def after_action_invocation(controller, options)
       if options[:render_view]
         html, content_for_htmls = controller.render_template(content_for: options[:content_for])
-        #puts "invoke_controller: html = #{html}"
+        #logger.debug "invoke_controller: html = #{html}"
         Document.find(options[:selector]).html = html
         content_for_htmls.each do |selector, html|
-          #puts "invoke_controller: content_for(#{selector}), html = #{html}"
+          #logger.debug "invoke_controller: content_for(#{selector}), html = #{html}"
           Document.find(selector).html = html
         end
       end
@@ -149,7 +155,7 @@ class Application
       begin
         controller_client_class = Object.const_get(controller_client_class_name)
       rescue Exception => e
-        puts "INFO: client class: #{controller_client_class_name} doesn't exist"
+        logger.debug "INFO: client class: #{controller_client_class_name} doesn't exist"
       end
 
       return unless controller_client_class
@@ -157,7 +163,7 @@ class Application
       begin
         controller_action_class = controller_client_class.const_get(@name.capitalize)
       rescue Exception => e
-        puts "INFO: client action class: #{controller_client_class_name}::#{action.name.capitalize} doesn't exist, #{e}"
+        logger.debug "INFO: client action class: #{controller_client_class_name}::#{action.name.capitalize} doesn't exist, #{e}"
       end
 
       return unless controller_action_class

@@ -1,5 +1,7 @@
 class Application
   class Router
+    include SemanticLogger::Loggable
+
     def initialize
       @routes = []
     end
