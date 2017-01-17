@@ -113,7 +113,11 @@ class Application
   end
 
   #
-  # resolve a path 
+  # resolve a path to a url
+  #
+  # @param path [String] - the root of a path method name (i.e. without _path suffix)
+  # @param args [Array] - extra arguments passed on to routes
+  # @return [String] - the url specified by the given path
   #
   def resolve_path(path, *args)
     # FIXME: can't detect plural by checking for trailing 's'
