@@ -82,6 +82,7 @@ class ActionController
           @__locals = name_or_options[:locals]
           @renderer.locals = name_or_options[:locals]
           build_render_path(top_level)
+          # Application.instance.render_is_done(false)
         else
           # puts "in render: is NOT top_level"
           build_render_path("dummy")
@@ -121,7 +122,12 @@ class ActionController
     end
 
     def build_render_path(name)
-      @render_path = @application.view_root + "/" + view_path + "/" + name
+      if name =~ /^layouts\//
+        @render_path = @application.view_root + "/" + name
+      else
+        @render_path = @application.view_root + "/" + view_path + "/" + name
+      end
+      logger.debug "render path = #{@render_path}, #{@application.view_root} / #{view_path} / #{name}"
     end
 
     def view_path
