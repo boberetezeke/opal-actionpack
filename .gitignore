@@ -3,3 +3,6 @@
 **/.backups
 *.swp
 
+*.gem
+.ruby-version
+
