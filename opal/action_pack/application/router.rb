@@ -11,12 +11,11 @@ class Application
     end
 
     def resource(route, options={}, &block)
-      # FIXME: should be default to singular
-      @routes.push(Route.new(route, options, &block))
+      @routes.push(Route.new(route, true, options, &block))
     end
 
     def resources(route, options={}, &block)
-      @routes.push(Route.new(route, options, &block))
+      @routes.push(Route.new(route, false, options, &block))
     end
 
     def root(options={})
@@ -24,7 +23,8 @@ class Application
       to = options[:to]
       controller_name, action_name = to.split(/#/)
       action = find_action([controller_name, action_name], {})
-      @root_route = Route.new(controller_name, redirect_action: action)
+      # FIXME: need to figure out what is_singular parameter should be
+      @root_route = Route.new(controller_name, false, redirect_action: action)
     end
 
     def match_url(url)
@@ -39,6 +39,19 @@ class Application
       return [action, params] if action
 
       raise "no route matches #{url}"
+    end
+
+    def paths
+      @routes.inject([]) do |sum, route|
+        sum + route.paths
+      end
+    end
+
+    def match_path_method(method_name, args)
+      @routes.each do |route|
+        action = route.match_path_method(method_name, args)
+        return action if action
+      end
     end
 
     def match_path(resource_name, action_name, *args)

@@ -4,12 +4,12 @@ describe Application::Route do
   describe "#match_path" do
     it "matches a show path" do
       route = Application::Route.new("calculators", false, {})
-      expect(route.match_path("calculators", "show", "1")).to eq("/calculators/1")
+      expect(route.match_path("calculator", nil, "1")).to eq("/calculators/1")
     end
 
     it "matches a non-show member path" do
       route = Application::Route.new("calculators", false, {})
-      expect(route.match_path("calculators", "edit", "1")).to eq("/calculators/1/edit")
+      expect(route.match_path("calculator", "edit", "1")).to eq("/calculators/1/edit")
     end
 
     it "matches an index path" do
@@ -19,7 +19,7 @@ describe Application::Route do
 
     it "matches an non-index collection path" do
       route = Application::Route.new("calculators", false, {})
-      expect(route.match_path("calculators", "new")).to eq("/calculators/new")
+      expect(route.match_path("calculator", "new")).to eq("/calculators/new")
     end
 
     #describe "#match"

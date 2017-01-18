@@ -1,5 +1,43 @@
 require 'spec_helper'
 
+# mock up ActiveRecord
+class ActiveRecord
+  class Base
+    def self.connection=(connection)
+    end
+  end
+
+  class MemoryStore
+  end
+end
+
+class CalculatorsController < ActionController::Base
+  def initialize(params={})
+    super
+    @ivar = 1
+  end
+end
+
+class Nested
+  class ResultsController < ActionController::Base
+  end
+end
+
+class CalculatorsClientController
+  class Show < ActionController::Base
+    def initialize(params)
+      super
+    end
+
+    def add_bindings
+    end
+
+    def invoke_callback
+      calculators_path(id:1)
+    end
+  end
+end
+
 describe ActionController::Base do
   before do
     Application.routes.draw do |router|

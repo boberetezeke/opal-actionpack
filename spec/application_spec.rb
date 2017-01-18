@@ -1,5 +1,6 @@
 require 'spec_helper'
 
+
 # mock up ActiveRecord
 class ActiveRecord
   class Base
@@ -11,43 +12,17 @@ class ActiveRecord
   end
 end
 
-class CalculatorsController < ActionController::Base
-  def initialize(params={})
-    super
-    @ivar = 1
-  end
-end
-
-class Nested
-  class ResultsController < ActionController::Base
-  end
-end
-
-class CalculatorsClientController
-  class Show < ActionController::Base
-    def initialize(params)
-      super
-    end
-
-    def add_bindings
-    end
-
-    def invoke_callback
-      calculators_path(id:1)
-    end
-  end
-end
-
-
-if RUBY_ENGINE != "opal"
-  class Template
-  end
-end
+# if RUBY_ENGINE != "opal"
+#   class Template
+#   end
+# end
 
 describe Application do
   let(:object1) { double('object') }
 
   before do
+    allow(object1).to receive(:save).and_return(nil)
+    Application.reset
     Application.routes.draw do |router|
       resource :calculator do
         member do
@@ -63,7 +38,6 @@ describe Application do
         end
       end
     end
-    allow(object1).to receive(:save).and_return(nil)
   end
 
   describe "#launch" do
@@ -86,13 +60,11 @@ describe Application do
       end
 
       it "handles edit route" do
-        SemanticLogger.silence(:debug) do
-        expect(Application.instance.resolve_path("edit_calculator", 1)).to eq("/calculator/edit")
-        end
+        expect(Application.instance.resolve_path("edit_calculator")).to eq("/calculator/edit")
       end
 
       it "handles custom member route" do
-        expect(Application.instance.resolve_path("blue_calculator", 1)).to eq("/calculator/blue")
+        expect(Application.instance.resolve_path("blue_calculator")).to eq("/calculator/blue")
       end
     end
 
@@ -101,7 +73,7 @@ describe Application do
       # member routes
 
       it "handles show routes" do
-        expect(Application.instance.resolve_path("results", 1)).to eq("/results/1")
+        expect(Application.instance.resolve_path("result", 1)).to eq("/results/1")
       end
 
       it "handles edit route" do

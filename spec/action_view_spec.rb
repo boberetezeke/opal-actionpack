@@ -1,7 +1,46 @@
 require 'spec_helper'
 
+# mock up ActiveRecord
+class ActiveRecord
+  class Base
+    def self.connection=(connection)
+    end
+  end
+
+  class MemoryStore
+  end
+end
+
+class CalculatorsController < ActionController::Base
+  def initialize(params={})
+    super
+    @ivar = 1
+  end
+end
+
+class Nested
+  class ResultsController < ActionController::Base
+  end
+end
+
+class CalculatorsClientController
+  class Show < ActionController::Base
+    def initialize(params)
+      super
+    end
+
+    def add_bindings
+    end
+
+    def invoke_callback
+      calculators_path(id:1)
+    end
+  end
+end
+
 describe ActionView do
   before do
+    Application.reset
     Application.routes.draw do |router|
       resources :calculators
       resources :results
@@ -89,7 +128,7 @@ describe ActionView do
 
     it "should handle a non-index collection _path method" do
       action_view = ActionView::Renderer.new(@controller)
-      expect(action_view.new_calculators_path).to eq("/calculators/new")
+      expect(action_view.new_calculator_path).to eq("/calculators/new")
     end
 
     it "should handle references to locals" do

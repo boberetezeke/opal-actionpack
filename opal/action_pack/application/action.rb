@@ -40,9 +40,18 @@ class Application
       return false
     end
 
-    def match_path(action_name, *args)
+    def match_path(action_name, is_singular, *args)
       logger.debug "Action#match_path: action_name = '#{action_name.to_s}', name = '#{@name.to_s}', args = #{args.inspect}"
       params = {}
+
+      if action_name.nil?
+        if @action_type == :member
+          action_name = 'show'
+        else
+          action_name = 'index'
+        end
+      end
+
       return [false, params] unless @name.to_s == action_name.to_s
 
       logger.debug "Action#match_path: name == action_name"
@@ -54,7 +63,14 @@ class Application
 
       if @action_type == :member
         logger.debug "Action#match_path: member"
-        if args.size == 1
+        if args.size == 0 && is_singular
+          if @name.to_s == 'show'
+            action_root = ""
+          else
+            action_root = @name
+          end
+          return [action_root, params]
+        elsif args.size == 1
           object = args.first
           if object.is_a?(String) || object.is_a?(Numeric)
             object_id = object

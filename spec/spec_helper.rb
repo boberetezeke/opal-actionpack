@@ -3,7 +3,11 @@ if RUBY_ENGINE == "opal"
   require 'opal-actionpack'
 else
   $:.insert(0, "opal")
-  require("action_pack")
+
+  #$:.insert(0, $:.select{|s| s =~ /activesupport/}.first.gsub(/lib/, "opal"))
+
+  require "active_support/all"
+  require "action_pack"
 end
 
 module TestUnitHelpers
@@ -11,8 +15,6 @@ module TestUnitHelpers
     actual.should == expected
   end
 end
-
-require 'semantic_logger'
 
 class SimpleAppender < SemanticLogger::Subscriber
   def initialize(level=nil, &block)

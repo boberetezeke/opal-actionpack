@@ -1,4 +1,5 @@
 require 'semantic_logger'
+require 'active_support'
 
 require 'action_pack/core_ext/object/blank.rb'
 require 'action_pack/core_ext/object/capture_exception.rb'

@@ -16,6 +16,13 @@ class Application
   end
 
   #
+  # reset class variables for testing purposes
+  #
+  def self.reset
+    @routes = nil
+  end
+
+  #
   # return the single instance of the application
   #
   # @return [Application] - the application object
@@ -120,37 +127,19 @@ class Application
   # @return [String] - the url specified by the given path
   #
   def resolve_path(path, *args)
-    # FIXME: can't detect plural by checking for trailing 's'
     logger.debug "resolve_path: #{path}, args = #{args}"
-    m = /^(([^_]+)_)?((\w+?)(s)?)$/.match(path)
+    m = /^(([^_]+)_)?((\w+?)?)$/.match(path)
     if m
       action_with_underscore = m[1]
       action = m[2]
       resource = m[3]
-      resource_root = m[4]
-      is_plural = m[5]
 
-      logger.debug "resolve_path: matched pattern: #{m}, action = #{action.inspect}, resource = #{resource}, is_plural=#{is_plural.inspect}"
-      if action_with_underscore
-        logger.debug "resolve_path: multi part path, action = #{action}"
-        if !is_plural
-          resource = resource.pluralize
-        end
-      else
-        if is_plural
-          logger.debug "resolve_path: single part path, plural"
-          action = 'index'
-        else
-          logger.debug "resolve_path: single part path, singular"
-          resource = resource.pluralize
-          action = 'show'
-        end
-      end
+      logger.debug "resolve_path: matched pattern: #{m}, action = #{action.inspect}, resource = #{resource}"
+
+      return self.class.routes.match_path(resource, action, *args)
     else
       raise "unable to match path: #{path}_path"
     end
-
-    self.class.routes.match_path(resource, action, *args)
   end
 
   # 

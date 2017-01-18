@@ -6,32 +6,32 @@ describe Application::Action do
 
     it "matches if a show path with 1 arg" do
       action = Application::Action.new(route, :member, name: 'show', parts: {id: '.*'})
-      expect(action.match_path(:show, '1')).to eq(["1", {}])
+      expect(action.match_path(:show, false, '1')).to eq(["1", {}])
     end
 
     it "matches if a show path with 1 arg and params" do
       action = Application::Action.new(route, :member, name: 'show', parts: {id: '.*'})
-      expect(action.match_path(:show, '1', extra: 1)).to eq(["1", {extra: 1}])
+      expect(action.match_path(:show, false, '1', extra: 1)).to eq(["1", {extra: 1}])
     end
 
     it "matches if a non-show member path with 1 arg" do
       action = Application::Action.new(route, :member, name: 'edit', parts: {id: '.*'})
-      expect(action.match_path(:edit, '1')).to eq(["1/edit", {}])
+      expect(action.match_path(:edit, false, '1')).to eq(["1/edit", {}])
     end
 
     it "matches if a index path with 0 args" do
       action = Application::Action.new(route, :collection, name: 'index', parts: {id: '.*'})
-      expect(action.match_path(:index)).to eq(["", {}])
+      expect(action.match_path(:index, false)).to eq(["", {}])
     end
 
     it "matches if a index path with params as args" do
       action = Application::Action.new(route, :collection, name: 'index', parts: {id: '.*'})
-      expect(action.match_path(:index, extra: 1)).to eq(["", {extra: 1}])
+      expect(action.match_path(:index, false, extra: 1)).to eq(["", {extra: 1}])
     end
 
     it "matches if a non-index collection path with 0 args" do
       action = Application::Action.new(route, :collection, name: 'new', parts: {id: '.*'})
-      expect(action.match_path(:new)).to eq(["new", {}])
+      expect(action.match_path(:new, false)).to eq(["new", {}])
     end
 
     #it "raises an exception with a member path without 1 arg"
