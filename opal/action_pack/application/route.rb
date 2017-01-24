@@ -24,7 +24,7 @@ class Application
       else
         all_actions = [
           Action.new(self, :collection, name: :new,   parts: ['new']),
-          Action.new(self, :member,     name: :edit,  parts: ['edit']),
+          Action.new(self, :member,     name: :edit,  parts: [{id: '.*'}, 'edit']),
           Action.new(self, :member,     name: :show,  parts: [{id: '.*'}]),
           Action.new(self, :collection, name: :index, parts: []),
           
