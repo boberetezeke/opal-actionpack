@@ -146,15 +146,24 @@ class Application
           if @is_singular
             @name
           else
-            @name.to_s.singularize
+            singularize(@name.to_s)
           end
         else
           if @is_singular
             "#{action.name}_#{@name}"
           else
-            "#{action.name}_#{@name.to_s.singularize}"
+            "#{action.name}_#{singularize(@name.to_s)}"
           end
         end
+      end
+    end
+
+    def singularize(str)
+      s = str.singularize
+      if s
+        s
+      else
+        str
       end
     end
 
@@ -163,14 +172,14 @@ class Application
 
       # return nil unless @name.to_s == resource_name.to_s
 
-      singularized_resource_name = @is_singular ? resource_name : resource_name.singularize
+      singularized_resource_name = @is_singular ? resource_name : singularize(resource_name)
       pluralized_resource_name = resource_name.pluralize unless @is_singular
 
       @actions.each do |action|
         if action.action_type == :member || action.name.to_s == 'new'
-          logger.debug "for member action #{action}, checking #{@name.to_s.singularize} == #{singularized_resource_name}"
+          logger.debug "for member action #{action}, checking #{singularize(@name.to_s)} == #{singularized_resource_name}"
           next if resource_name != singularized_resource_name
-          next if @name.to_s.singularize != singularized_resource_name
+          next if singularize(@name.to_s) != singularized_resource_name
 
           returned_resource_name = @is_singular ? resource_name : pluralized_resource_name
         else

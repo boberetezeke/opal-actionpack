@@ -81,12 +81,12 @@ class ActionSyncer
       {object_key => @object.attributes}
     end
     
-    def save
+    def save(callback)
       puts "action = #{action}, @action = #{@action}"
       case @action
       when :insert
         puts "POST to (#{url}): object=#{object.attributes}"
-        HTTP.post(url, payload: payload, headers: headers).when do |response|
+        HTTP.post(url, payload: payload, headers: headers) do |response|
           puts "response.json = #{response.json}"
           puts "object_key = #{object_key}"
           puts "object = [#{object.object_id}]:#{object}"
@@ -95,10 +95,11 @@ class ActionSyncer
           object.update_id(new_id)
           
           puts "object (after) = [#{object.object_id}]:#{object}"
-          Promise.new.resolve(response)
-        end.error do |response|
-          Promise.new.reject(response)
-        end
+          # Promise.new.resolve(response)
+          callback.call(response)
+        end #.error do |response|
+          #Promise.new.reject(response)
+        #end
       when :update
         puts "PUT to (#{url}): object=#{object.attributes}, payload: #{payload}"
         HTTP.put(url, payload: payload, headers: headers)
@@ -259,13 +260,14 @@ class ActionSyncer
     RemoteSaver.new(
       object_url(object_to_update.action, object_to_update.object),
       object_to_update.object, 
-      @application.object_key_for_object(@object), 
-      object_to_update.action
-    ).save.when do |response|
-      handle_ok_response(response)
-    end.error do
-      handle_error_response(response)
-    end
+      @application.object_key_for_object(object_to_update.object), 
+      object_to_update.action,
+    ).save(->(response) { handle_ok_response(response) })
+    # .save.then do |response|
+    #  handle_ok_response(response)
+    #end.error do
+    #  handle_error_response(response)
+    #end
   end
 
   def handle_ok_response(response)

@@ -40,6 +40,7 @@ class Application
   #
   def initialize
     #puts "in initialize of class #{self.class.to_s}"
+    
     @store = get_store
     ActiveRecord::Base.connection = @store
   end

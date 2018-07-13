@@ -143,7 +143,7 @@ class Application
       
       if controller_ret.is_a?(Promise)
         controller_ret.then do
-          after_action_invocation(controller, options)
+          after_action_invocation(controller, options, params)
         end.fail do |e|
           logger.debug "Controller action failed because: #{e}"
           e.backtrace[0..10].each do |bt|
@@ -151,13 +151,13 @@ class Application
           end
         end
       else
-        after_action_invocation(controller, options)
+        after_action_invocation(controller, options, params)
       end
       
       return controller
     end
 
-    def after_action_invocation(controller, options)
+    def after_action_invocation(controller, options, params)
       if options[:render_view]
         html, content_for_htmls = controller.render_template(content_for: options[:content_for])
         #logger.debug "invoke_controller: html = #{html}"
