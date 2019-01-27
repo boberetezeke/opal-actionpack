@@ -78,16 +78,16 @@ class Application
       #puts "Route:match: parts: #{parts}, name: #{@name}"
       return nil unless @name == parts[0]
       collection_actions.each do |action|
-        logger.debug "Route:match: checking action: #{action}, parts[1..-1]=#{parts[1..-1]}, params=#{params}"
+        # logger.debug "Route:match: checking action: #{action}, parts[1..-1]=#{parts[1..-1]}, params=#{params}"
         if action.match(parts[1..-1], params)
-          logger.debug "Route:match: MATCHED"
+          # logger.debug "Route:match: MATCHED"
           return action
         end
       end
       member_actions.each do |action|
-        logger.debug "Route:match: checking action: #{action}"
+        # logger.debug "Route:match: checking action: #{action}"
         if action.match(parts[1..-1], params)
-          logger.debug "Route:match: MATCHED"
+          # logger.debug "Route:match: MATCHED"
           return action
         end
       end
@@ -168,7 +168,7 @@ class Application
     end
 
     def match_path(resource_name, action_name, *args)
-      logger.debug "Route#match_path, name = #{@name}, resource_name = #{resource_name}"
+      # logger.debug "Route#match_path, name = #{@name}, resource_name = #{resource_name}"
 
       # return nil unless @name.to_s == resource_name.to_s
 
@@ -177,13 +177,13 @@ class Application
 
       @actions.each do |action|
         if action.action_type == :member || action.name.to_s == 'new'
-          logger.debug "for member action #{action}, checking #{singularize(@name.to_s)} == #{singularized_resource_name}"
+          # logger.debug "for member action #{action}, checking #{singularize(@name.to_s)} == #{singularized_resource_name}"
           next if resource_name != singularized_resource_name
           next if singularize(@name.to_s) != singularized_resource_name
 
           returned_resource_name = @is_singular ? resource_name : pluralized_resource_name
         else
-          logger.debug "for collection action #{action}, checking #{@name} == #{pluralized_resource_name}"
+          # logger.debug "for collection action #{action}, checking #{@name} == #{pluralized_resource_name}"
           next if resource_name != pluralized_resource_name
           next if @name.to_s != pluralized_resource_name
 
@@ -203,8 +203,8 @@ class Application
         #
         params_string = params.map{|key, value| "#{key}=#{value}"}.join("&")
 
-        logger.debug "action_path = #{action_path}"
-        logger.debug "params_string = #{params_string}"
+        # logger.debug "action_path = #{action_path}"
+        # logger.debug "params_string = #{params_string}"
 
         if action_path
           if action_path == ""

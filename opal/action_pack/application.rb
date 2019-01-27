@@ -40,7 +40,7 @@ class Application
   #
   def initialize
     #puts "in initialize of class #{self.class.to_s}"
-    
+
     @store = get_store
     ActiveRecord::Base.connection = @store
   end
@@ -94,7 +94,7 @@ class Application
   # @param block [Proc`] - block to call just before going to the controller route
   #
   def launch(initial_objects_json, session={}, block=Proc.new)
-    logger.debug "block = #{block}"
+    # logger.debug "block = #{block}"
     capture_exception do
       @launching = true
       initial_path = `window.location.pathname`
@@ -128,14 +128,14 @@ class Application
   # @return [String] - the url specified by the given path
   #
   def resolve_path(path, *args)
-    logger.debug "resolve_path: #{path}, args = #{args}"
+    # logger.debug "resolve_path: #{path}, args = #{args}"
     m = /^(([^_]+)_)?((\w+?)?)$/.match(path)
     if m
       action_with_underscore = m[1]
       action = m[2]
       resource = m[3]
 
-      logger.debug "resolve_path: matched pattern: #{m}, action = #{action.inspect}, resource = #{resource}"
+      # logger.debug "resolve_path: matched pattern: #{m}, action = #{action.inspect}, resource = #{resource}"
 
       return self.class.routes.match_path(resource, action, *args)
     else
@@ -164,14 +164,14 @@ class Application
   def go_to_route(url, options={}, additional_params={})
     @after_render_block = nil
     @came_from_route = true
-    logger.debug "go_to_route: #{url}, options=#{options}, additional_params=#{additional_params}"
+    # logger.debug "go_to_route: #{url}, options=#{options}, additional_params=#{additional_params}"
     @current_path = UrlParser.to_path(url) unless options[:keep_current_path]
     # puts "go_to_route: url = #{url}"
     current_route_action, @params = self.class.routes.match_url(url)
-    logger.debug "go_to_route: params = #{@params}"
+    # logger.debug "go_to_route: params = #{@params}"
     @params = @params.merge(additional_params)
-    logger.debug "go_to_route: params = #{@params} after additional_params added"
-    logger.debug "go_to_route: render is done: #{@came_from_route}"
+    # logger.debug "go_to_route: params = #{@params} after additional_params added"
+    # logger.debug "go_to_route: render is done: #{@came_from_route}"
     @controller = current_route_action.invoke_controller(@params, options)
     
     # puts "before push_state"
@@ -204,7 +204,7 @@ class Application
   # render is done
   #
   def render_is_done(did_render)
-    logger.debug "render is done: #{@came_from_route}"
+    # logger.debug "render is done: #{@came_from_route}"
     @after_render_block.call(did_render) if @after_render_block
     @came_from_route = false
   end

@@ -41,7 +41,7 @@ class Application
     end
 
     def match_path(action_name, is_singular, *args)
-      logger.debug "Action#match_path: action_name = '#{action_name.to_s}', name = '#{@name.to_s}', args = #{args.inspect}"
+      # logger.debug "Action#match_path: action_name = '#{action_name.to_s}', name = '#{@name.to_s}', args = #{args.inspect}"
       params = {}
 
       if action_name.nil?
@@ -54,7 +54,7 @@ class Application
 
       return [false, params] unless @name.to_s == action_name.to_s
 
-      logger.debug "Action#match_path: name == action_name"
+      # logger.debug "Action#match_path: name == action_name"
       if args.size > 0 
         if args.last.is_a?(Hash)
           params = args.pop
@@ -62,7 +62,7 @@ class Application
       end
 
       if @action_type == :member
-        logger.debug "Action#match_path: member"
+        # logger.debug "Action#match_path: member"
         if args.size == 0 && is_singular
           if @name.to_s == 'show'
             action_root = ""
@@ -77,29 +77,29 @@ class Application
           else
             object_id = object.id
           end
-          logger.debug "Action#match_path: object_id = #{object_id}, name = #{@name}"
+          # logger.debug "Action#match_path: object_id = #{object_id}, name = #{@name}"
           #
           if @name.to_s == 'show'
             action_root = object_id.to_s
           else
             action_root = "#{object_id}/#{@name}"
           end
-          logger.debug "Action#match_path(member): returning: action_root = #{action_root}, params=#{params}"
+          # logger.debug "Action#match_path(member): returning: action_root = #{action_root}, params=#{params}"
           return [action_root, params]
         else
           raise "requires one argument passed to member path"
         end
       else
-        logger.debug "Action#match_path: collection"
+        # logger.debug "Action#match_path: collection"
         if args.size == 0
-          logger.debug "Action#match_path: @name = #{@name}"
+          # logger.debug "Action#match_path: @name = #{@name}"
           if @name.to_s == 'index'
             # FIXME: need to url encode parameters
             action_root = ""
           else
             action_root = @name
           end
-          logger.debug "Action#match_path(collection): returning: action_root = #{action_root}, params=#{params}"
+          # logger.debug "Action#match_path(collection): returning: action_root = #{action_root}, params=#{params}"
           return [action_root, params]
         else
           raise "argument passed to collection path"
@@ -133,7 +133,7 @@ class Application
       begin
         controller_class = Object.const_get(controller_class_name)
       rescue Exception => e
-        logger.debug "INFO: client class: #{controller_class_name} doesn't exist"
+        # logger.debug "INFO: client class: #{controller_class_name} doesn't exist"
       end
 
       return [nil, nil] unless controller_class
@@ -145,7 +145,7 @@ class Application
         controller_ret.then do
           after_action_invocation(controller, options, params)
         end.fail do |e|
-          logger.debug "Controller action failed because: #{e}"
+          # logger.debug "Controller action failed because: #{e}"
           e.backtrace[0..10].each do |bt|
             logger.debug bt
           end

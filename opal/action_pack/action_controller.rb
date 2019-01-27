@@ -111,7 +111,7 @@ class ActionController
     def invoke_action(action)
       # set up default render path
       @render_path = @application.view_root + "/" + view_path + "/" + action.name
-      logger.debug "ActionController#invoke_action(#{action})#render_path: #{@render_path}, locals = #{@__locals}"
+      # logger.debug "ActionController#invoke_action(#{action})#render_path: #{@render_path}, locals = #{@__locals}"
       options = {path: @render_path}
       if @__locals
         options.merge(locals: @__locals)
@@ -127,7 +127,7 @@ class ActionController
       else
         @render_path = @application.view_root + "/" + view_path + "/" + name
       end
-      logger.debug "render path = #{@render_path}, #{@application.view_root} / #{view_path} / #{name}"
+      # logger.debug "render path = #{@render_path}, #{@application.view_root} / #{view_path} / #{name}"
     end
 
     def view_path
@@ -158,7 +158,12 @@ class ActionController
       manual_unbind = options.delete(:manual_unbind)
       unbind_all_events unless manual_unbind
 
+      remove_bindings
+
       @application.go_to_route(*(new_args + [options]), &block)
+    end
+
+    def remove_bindings
     end
 
     #
