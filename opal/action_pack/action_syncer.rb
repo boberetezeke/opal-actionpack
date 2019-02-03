@@ -302,7 +302,7 @@ class ActionSyncer
     if first_in_queue.action == :update || first_in_queue.action == :insert
       if first_in_queue.state == :idle
         # replace it
-        first_in_queue.object = object
+        first_in_queue.object = object_to_update.object
       else
         # queue it
         @object_queue.push(object_to_update)
