@@ -102,10 +102,14 @@ class ActionSyncer
         #end
       when :update
         puts "PUT to (#{url}): object=#{object.attributes}, payload: #{payload}"
-        HTTP.put(url, payload: payload, headers: headers)
+        HTTP.put(url, payload: payload, headers: headers) do |response|
+          callback.call(response)
+        end
       when :delete
         puts "ACTION(delete to (#{url})"
-        HTTP.delete(url, headers: headers)
+        HTTP.delete(url, headers: headers) do |response|
+          callback.call(response)
+        end
       else
         raise "Unknown action in save: #{action.inspect}"
       end
