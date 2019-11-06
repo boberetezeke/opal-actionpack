@@ -4,6 +4,13 @@ class ActionController
     include SemanticLogger::Loggable
 
     class BoundEvent < Struct.new(:event, :selector); end
+    # class BoundEvent
+    #   attr_accessor :event, :selector
+    #   def initialize(event, selector)
+    #     @event = event
+    #     @selector = selector
+    #   end
+    # end
 
     def self.helper_method(sym)
       if !defined?(@@helper_methods)
@@ -214,7 +221,8 @@ class ActionController
     end
 
     def current_path
-      `window.location.pathname`
+      Application.instance.current_path
+      # `window.location.pathname`
     end
 
     private
