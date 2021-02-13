@@ -177,6 +177,8 @@ class Application
     # puts "before push_state"
     if options[:push_history]
       History.push_state({}, 'new route', url)
+    else
+      History.replace_state({}, 'new route', url)
     end
     
     @controller
