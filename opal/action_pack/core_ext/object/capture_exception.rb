@@ -1,11 +1,12 @@
 class Object
+  include SemanticLogger::Loggable
   def capture_exception
     begin
       yield
     rescue Exception => e
-      puts "Exception: #{e}"
+      logger.error "Exception: #{e}", tags: [:exception]
       e.backtrace[0..10].each do |bt|
-        puts bt
+        logger.error bt, tags: [:exception, :backtrace]
       end
     end      
   end

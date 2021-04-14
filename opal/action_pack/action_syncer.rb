@@ -18,6 +18,7 @@ end
 
 
 class ActionSyncer
+  include SemanticLogger::Loggable
   UPDATE_FREQUENCY = 1000
 
   class ObjectToUpdate
@@ -59,6 +60,7 @@ class ActionSyncer
   end
   
   class RemoteSaver
+    include SemanticLogger::Loggable
     attr_reader :url, :object, :object_key, :action
     
     def initialize(url, object, object_key, action)
@@ -67,10 +69,10 @@ class ActionSyncer
       @object_key = object_key
       @action = action
       
-      puts "url = #{url}"
-      puts "object = #{object}"
-      puts "object_key = #{object_key}"
-      puts "action = #{@action}"
+      debug "url = #{url}"
+      debug "object = #{object}"
+      debug "object_key = #{object_key}"
+      debug "action = #{@action}"
     end
     
     def headers
@@ -82,37 +84,45 @@ class ActionSyncer
     end
     
     def save(callback)
-      puts "action = #{action}, @action = #{@action}"
+      info "action = #{action}, @action = #{@action}"
       case @action
       when :insert
-        puts "POST to (#{url}): object=#{object.attributes}"
+        info "POST to (#{url}): object=#{object.attributes}"
         HTTP.post(url, payload: payload, headers: headers) do |response|
-          puts "response.json = #{response.json}"
-          puts "object_key = #{object_key}"
-          puts "object = [#{object.object_id}]:#{object}"
+          debug "response.json = #{response.json}"
+          debug "object_key = #{object_key}"
+          debug "object = [#{object.object_id}]:#{object}"
           new_id = response.json[object_key]['id']
-          puts "new_id = #{new_id}"
+          debug "new_id = #{new_id}"
           object.update_id(new_id)
           
-          puts "object (after) = [#{object.object_id}]:#{object}"
+          debug "object (after) = [#{object.object_id}]:#{object}"
           # Promise.new.resolve(response)
           callback.call(response)
         end #.error do |response|
           #Promise.new.reject(response)
         #end
       when :update
-        puts "PUT to (#{url}): object=#{object.attributes}, payload: #{payload}"
+        info "PUT to (#{url}): object=#{object.attributes}, payload: #{payload}"
         HTTP.put(url, payload: payload, headers: headers) do |response|
           callback.call(response)
         end
       when :delete
-        puts "ACTION(delete to (#{url})"
+        info "ACTION(delete to (#{url})"
         HTTP.delete(url, headers: headers) do |response|
           callback.call(response)
         end
       else
         raise "Unknown action in save: #{action.inspect}"
       end
+    end
+
+    def debug(str)
+      logger.debug str, tags: [:sync]
+    end
+
+    def info(str)
+      logger.info str, tags: [:sync]
     end
   end
 
@@ -203,7 +213,7 @@ class ActionSyncer
   private
 
   def process_updates
-    puts "in process_updates"
+    info "in process_updates", tags: [:sync]
     capture_exception do
       @update_queue.each do |updater|
         if updater.time_expired?(UPDATE_FREQUENCY)
@@ -217,12 +227,12 @@ class ActionSyncer
               #`var d = new Date(); console.log("time= " + d.getSeconds() + ":" + d.getMilliseconds());`
               if response.status_code.to_i >= 200 && response.status_code.to_i <= 299
                 @application.update_every_succeeded
-                puts "response.json = #{response.json}"
+                debug "response.json = #{response.json}", tags: [:sync]
                 response.json.each do |object_json|
                   @application.create_or_update_object_from_object_key_and_attributes(object_json.keys.first, object_json.values.first)
                 end 
               else
-                puts "ERROR: status code: #{response.status_code}"
+                error "ERROR: status code: #{response.status_code}", tags: [:sync]
                 @application.update_every_failed
               end
               # puts "GET(#{updater.url}) processed response"
@@ -230,7 +240,7 @@ class ActionSyncer
             end
             #puts "GET done"
           rescue Exception => e
-            puts "Exception: #{e}"
+            error "Exception: #{e}", tags: [:sync]
             @application.update_every_failed
             raise e
           end
@@ -275,21 +285,21 @@ class ActionSyncer
   end
 
   def handle_ok_response(response)
-    puts "OK: response #{response}"
+    debug "OK: response #{response}"
     @object_queue.shift
-    puts "OK: after remove head, process queue: #{@object_queue.size}"
+    debug "OK: after remove head, process queue: #{@object_queue.size}"
     process_queue if @object_queue.size > 0
   end
   
   def handle_error_response(response)
-    puts "ERROR: response #{response}"
+    debug "ERROR: response #{response}"
     object_to_update = @object_queue.first
     object_to_update.retry_count += 1
     if object_to_update.retry_count >= @max_retries
-      puts "NO MORE TRIES: #{object_to_update.retry_count} > #{@max_retries}"
+      error "NO MORE TRIES: #{object_to_update.retry_count} > #{@max_retries}"
       @application.retry_count_hit
     else
-      puts "RETRY # #{object_to_update.retry_count} in #{object_to_update.retry_count} seconds"
+      debug "RETRY # #{object_to_update.retry_count} in #{object_to_update.retry_count} seconds"
       after object_to_update.retry_count.seconds do
         object_to_update.state = :idle
         process_queue_entry(object_to_update)
@@ -334,6 +344,16 @@ class ActionSyncer
       raise "delete with delete objects already found in queue: #{objects_queued_to_save}"
     end
   end
+
+  def debug(str)
+    logger.debug str, tags: [:sync]
+  end
+
+  def info(str)
+    logger.info str, tags: [:sync]
+  end
+
+  def error(str)
+    logger.error str, tags: [:sync]
+  end
 end
-
-
